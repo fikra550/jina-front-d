@@ -11,7 +11,8 @@ import {
 } from '../../Redux/store';
 import PaginationControls from '../../components/PaginationControls';
 import { useResetScrollOnOpen } from "../../hooks/useResetScrollOnOpen";
-import { printInvoice } from '../../utils/printInvoice';
+import InvoiceViewPage, { downloadInvoice } from '../../components/invoice/InvoiceDocument';
+import cachetImage from '../../assets/cache2.png';
 import {
   Package, Plus, Pencil, Trash2, X, ShoppingCart, AlertTriangle,
   Droplet, Droplets, Filter, Wrench, Tag, Layers, CheckCircle2, RefreshCw,
@@ -19,7 +20,7 @@ import {
   Search, List, LayoutGrid, ChevronDown, Check, ArrowUp, ArrowDown,
   ArrowUpDown, Info, DollarSign, TrendingUp, AlertCircle, Building2,
   CheckCircle, XCircle, Warehouse, Calendar, CreditCard, Star,
-  History, Receipt,
+  History, Receipt, Eye,
 } from 'lucide-react';
 
 /* ============================================================ */
@@ -40,7 +41,38 @@ const EMPTY_CATEGORY = {
   description: '', is_active: true, sort_order: 0,
 };
 
-/* Facture : voir src/utils/printInvoice.js (même style que ContractLocation) */
+/* Facture : voir src/components/invoice/InvoiceDocument.jsx */
+
+/* ============================================================
+   Choix : facture avec ou sans cachet (cachet = assets/cache2.png)
+   ============================================================ */
+const InvoiceCachetModal = ({ subtitle, onClose, onChoose }) => (
+  <div className="modal-overlay" onClick={onClose}>
+    <div className="modal delete-modal invoice-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="invoice-icon"><Receipt size={32} /></div>
+      <h3 className="delete-title">Télécharger la facture</h3>
+      <p className="delete-message">
+        {subtitle && <><span className="reservation-id">{subtitle}</span><br /></>}
+        Voulez-vous la facture avec ou sans cachet ?
+      </p>
+      <div className="invoice-choices">
+        <button type="button" className="invoice-choice" onClick={() => onChoose(false)}>
+          <FileText size={26} />
+          <strong>Sans cachet</strong>
+          <small>Facture simple</small>
+        </button>
+        <button type="button" className="invoice-choice invoice-choice-primary" onClick={() => onChoose(true)}>
+          <img src={cachetImage} alt="" className="invoice-cachet-preview" />
+          <strong>Avec cachet</strong>
+          <small>Cachet de l'agence</small>
+        </button>
+      </div>
+      <button type="button" className="modal-btn modal-btn-cancel" onClick={onClose} style={{ width: '100%' }}>
+        Annuler
+      </button>
+    </div>
+  </div>
+);
 
 const stockText = (p) =>
   `${p.stock_quantity} ${p.unit || ''}`.trim() +
@@ -53,7 +85,7 @@ const saleClientName = (s) => {
   return '—';
 };
 
-const saleInvoice = (s) => printInvoice({
+const buildSaleInvoice = (s) => ({
   number: `FAC-V-${String(s.id).padStart(5, '0')}`,
   date: s.sale_date,
   clientName: saleClientName(s),
@@ -176,6 +208,8 @@ export default function AdminProducts() {
   const [categoryForm, setCategoryForm] = useState(EMPTY_CATEGORY);
 
   const [saleModal, setSaleModal] = useState(false);
+  const [invoiceSale, setInvoiceSale] = useState(null);
+  const [viewSale, setViewSale] = useState(null);
   const [saleForm, setSaleForm] = useState({
     product_id: '', client_name: '',
     quantity: 1, unit_price: 0, payment_status: 'paid',
@@ -223,6 +257,7 @@ export default function AdminProducts() {
   saleModal,
   historyProduct,
   deleteModalOpen,
+  viewSale,
 ]);
 
   /* ============================================================ */
@@ -503,7 +538,7 @@ export default function AdminProducts() {
     </div>
   );
 
-  const anyModalOpen = showProductModal || showCategoryModal || saleModal || !!historyProduct;
+  const anyModalOpen = showProductModal || showCategoryModal || saleModal || !!historyProduct || !!viewSale;
 
   /* ============================================================ */
   return (
@@ -1532,8 +1567,12 @@ export default function AdminProducts() {
                             <td>{saleClientName(s)}</td>
                             <td className="text-right">
                               <div className="ac-actions">
+                                <button type="button" className="ac-action-btn ac-action-view"
+                                  onClick={() => setViewSale(s)} title="Voir facture">
+                                  <Eye size={15} />
+                                </button>
                                 <button type="button" className="ac-action-btn ac-action-invoice"
-                                  onClick={() => saleInvoice(s)} title="Facture (PDF)">
+                                  onClick={() => setInvoiceSale(s)} title="Télécharger la facture (PDF)">
                                   <Receipt size={15} />
                                 </button>
                                 <button type="button" className="ac-action-btn ac-action-delete"
@@ -1603,9 +1642,13 @@ export default function AdminProducts() {
                             )}
                           </div>
 
-                          <div className="ac-card-btns" style={{ gridTemplateColumns: '1fr 1fr' }}>
+                          <div className="ac-card-btns" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+                            <button type="button" className="ac-card-btn ac-action-view"
+                              onClick={() => setViewSale(s)}>
+                              <Eye size={17} /><span>Voir facture</span>
+                            </button>
                             <button type="button" className="ac-card-btn ac-action-invoice"
-                              onClick={() => saleInvoice(s)}>
+                              onClick={() => setInvoiceSale(s)}>
                               <Receipt size={17} /><span>Facture</span>
                             </button>
                             <button type="button" className="ac-card-btn ac-action-delete"
@@ -1662,6 +1705,28 @@ export default function AdminProducts() {
             </div>
           )}
         </div>
+      )}
+
+      {/* ============ VOIR FACTURE (inline, comme Voir contrat) ============ */}
+      {viewSale && (
+        <InvoiceViewPage
+          invoice={buildSaleInvoice(viewSale)}
+          onClose={() => setViewSale(null)}
+          onDownload={() => setInvoiceSale(viewSale)}
+        />
+      )}
+
+      {/* ============ MODAL FACTURE : AVEC / SANS CACHET ============ */}
+      {invoiceSale && (
+        <InvoiceCachetModal
+          subtitle={`FAC-V-${String(invoiceSale.id).padStart(5, '0')}`}
+          onClose={() => setInvoiceSale(null)}
+          onChoose={(withCachet) => {
+            const sale = invoiceSale;
+            setInvoiceSale(null);
+            downloadInvoice(buildSaleInvoice(sale), withCachet);
+          }}
+        />
       )}
 
       <Styles />
@@ -2287,6 +2352,47 @@ function Styles() {
 .rv .inline-history-delete:disabled,
 .rv .pdf-action-btn:disabled,
 .rv .rv-sigmenu button:disabled { opacity: 0.6; cursor: not-allowed; }
+/* ---------- Facture : avec / sans cachet ---------- */
+.rv .invoice-modal { max-width: 460px; }
+.rv .invoice-icon {
+    width: 72px; height: 72px; margin: 0 auto 14px; border-radius: 50%;
+    background: #f3e8ff; border: 2px solid #8b5cf6; color: #8b5cf6;
+    display: flex; align-items: center; justify-content: center;
+}
+.rv .invoice-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 4px 0 14px; }
+.rv .invoice-choice {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    min-height: 132px; padding: 14px 10px; border-radius: 18px;
+    border: 1.5px solid var(--line-strong); background: var(--surface-2); color: var(--tx);
+    cursor: pointer; font-family: inherit; transition: transform 0.12s, background 0.15s, box-shadow 0.15s;
+}
+.rv .invoice-choice strong { font-size: 0.92rem; font-weight: 900; }
+.rv .invoice-choice small { font-size: 0.72rem; color: var(--tx-2); font-weight: 600; }
+.rv .invoice-choice svg { color: var(--tx-2); }
+.rv .invoice-choice:hover { transform: translateY(-2px); box-shadow: 0 10px 24px -12px rgba(0, 0, 0, 0.35); }
+.rv .invoice-choice:active { transform: translateY(2px); }
+.rv .invoice-choice-primary { background: var(--acc); color: #0a0a0a; }
+.rv .invoice-choice-primary small { color: rgba(10, 10, 10, 0.7); }
+.rv .invoice-choice-primary:hover { background: var(--acc-d); }
+.rv .invoice-cachet-preview {
+    width: 64px; height: 46px; object-fit: contain; border-radius: 8px;
+    background: #fff; padding: 3px; border: 1px solid rgba(10, 10, 10, 0.15);
+}
+@media (prefers-color-scheme: dark) {
+    .rv .invoice-icon { background: rgba(139, 92, 246, 0.18); }
+}
+@media (max-width: 768px) {
+    .rv .invoice-modal .modal-btn { flex: 0 0 auto; width: 100%; height: 52px; }
+    .rv .invoice-choice { min-height: 120px; }
+}
+
+/* ---------- Bouton voir facture ---------- */
+.rv .ac-action-view { color: #0891b2; }
+.rv .ac-action-btn.ac-action-view:hover, .rv .ac-card-btn.ac-action-view:hover, .rv .ac-card-btn.ac-action-view:active { background: #cffafe; }
+@media (prefers-color-scheme: dark) {
+    .rv .ac-action-btn.ac-action-view:hover, .rv .ac-card-btn.ac-action-view:hover, .rv .ac-card-btn.ac-action-view:active { background: rgba(8, 145, 178, 0.25); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .rv *, .rv *::before, .rv *::after { animation: none !important; transition: none !important; }
 }

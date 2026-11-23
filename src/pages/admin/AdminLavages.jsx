@@ -13,12 +13,13 @@ import {
 } from '../../Redux/store';
 import PaginationControls from '../../components/PaginationControls';
 import { useResetScrollOnOpen } from "../../hooks/useResetScrollOnOpen";
-import { printInvoice } from '../../utils/printInvoice';
+import InvoiceViewPage, { downloadInvoice } from '../../components/invoice/InvoiceDocument';
+import cachetImage from '../../assets/cache2.png';
 import {
   Droplet, Plus, Pencil, Trash2, X, Play, CheckCircle2, Ban,
   CreditCard, Package, RefreshCw, Clock, Calendar, Car, User,
   Save, Sparkles, Tag, Image as ImageIcon, FileText, ChevronDown,
-  Check, List, LayoutGrid, ArrowUpDown, ArrowUp, ArrowDown, Search,
+  Check, List, LayoutGrid, ArrowUpDown, ArrowUp, ArrowDown, Search, Camera, ImagePlus, Eye,
   AlertCircle, Wallet, TrendingUp, Timer, Settings, Receipt,
 } from 'lucide-react';
 
@@ -84,7 +85,87 @@ const AcSelect = ({ value, onChange, options, id, ariaLabel }) => {
   );
 };
 
-/* Facture : voir src/utils/printInvoice.js (même style que ContractLocation) */
+/* Facture : voir src/components/invoice/InvoiceDocument.jsx */
+
+/* ============================================================
+   Choix : facture avec ou sans cachet (cachet = assets/cache2.png)
+   ============================================================ */
+const InvoiceCachetModal = ({ subtitle, onClose, onChoose }) => (
+  <div className="modal-overlay" onClick={onClose}>
+    <div className="modal delete-modal invoice-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="invoice-icon"><Receipt size={32} /></div>
+      <h3 className="delete-title">Télécharger la facture</h3>
+      <p className="delete-message">
+        {subtitle && <><span className="reservation-id">{subtitle}</span><br /></>}
+        Voulez-vous la facture avec ou sans cachet ?
+      </p>
+      <div className="invoice-choices">
+        <button type="button" className="invoice-choice" onClick={() => onChoose(false)}>
+          <FileText size={26} />
+          <strong>Sans cachet</strong>
+          <small>Facture simple</small>
+        </button>
+        <button type="button" className="invoice-choice invoice-choice-primary" onClick={() => onChoose(true)}>
+          <img src={cachetImage} alt="" className="invoice-cachet-preview" />
+          <strong>Avec cachet</strong>
+          <small>Cachet de l'agence</small>
+        </button>
+      </div>
+      <button type="button" className="modal-btn modal-btn-cancel" onClick={onClose} style={{ width: '100%' }}>
+        Annuler
+      </button>
+    </div>
+  </div>
+);
+
+/* ============================================================
+   Bouton d'ajout de photos (avant / après)
+   ============================================================ */
+const PhotoPicker = ({ id, label, tone, icon: Icon, photos, onAdd, onRemove }) => {
+  const inputRef = useRef(null);
+  const [drag, setDrag] = useState(false);
+  const list = photos || [];
+
+  return (
+    <div className="inline-field">
+      <label htmlFor={id}>{label}</label>
+      <input
+        ref={inputRef}
+        id={id}
+        type="file"
+        accept="image/*"
+        multiple
+        className="photo-input-hidden"
+        onChange={(e) => { onAdd(e.target.files); e.target.value = ''; }}
+      />
+      <button
+        type="button"
+        className={`photo-btn photo-btn-${tone} ${drag ? 'drag' : ''}`}
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
+        onDragLeave={() => setDrag(false)}
+        onDrop={(e) => { e.preventDefault(); setDrag(false); onAdd(e.dataTransfer.files); }}
+      >
+        <span className="photo-btn-ico"><Icon size={20} /></span>
+        <span className="photo-btn-text">
+          <strong>{list.length ? 'Ajouter d\u2019autres photos' : 'Ajouter des photos'}</strong>
+          <small>Cliquez ou glissez vos images ici</small>
+        </span>
+        {list.length > 0 && <span className="photo-btn-count">{list.length}</span>}
+      </button>
+      {list.length > 0 && (
+        <div className="photo-previews">
+          {list.map((p, i) => (
+            <div key={i} className="photo-preview">
+              <img src={p} alt="" />
+              <button type="button" className="photo-preview-remove" onClick={() => onRemove(i)} aria-label="Retirer">×</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const lavageClient = (l) => {
   const n = (l.client_name || '').trim();
@@ -93,7 +174,7 @@ const lavageClient = (l) => {
   return '';
 };
 
-const lavageInvoice = (l) => {
+const buildLavageInvoice = (l) => {
   let services = l.services;
   if (typeof services === 'string') { try { services = JSON.parse(services); } catch { services = []; } }
   services = Array.isArray(services) ? services.filter((s) => s && s.name) : [];
@@ -105,7 +186,7 @@ const lavageInvoice = (l) => {
         return { label: s.name, qty, unit, total: qty * unit };
       })
     : [{ label: `Lavage ${l.type || ''}`.trim(), qty: 1, unit: price, total: price }];
-  printInvoice({
+  return {
     number: `FAC-L-${String(l.id).padStart(5, '0')}`,
     date: l.date_lavage,
     clientName: lavageClient(l) || '—',
@@ -116,7 +197,7 @@ const lavageInvoice = (l) => {
     total: price,
     paid: Number(l.amount_paid) || 0,
     notes: l.notes || '',
-  });
+  };
 };
 
 const CONFIRM_META = {
@@ -208,6 +289,8 @@ export default function AdminLavages() {
   const [paymentForm, setPaymentForm]   = useState({ amount: 0, date: new Date().toISOString().slice(0,10), method: 'cash', notes: '' });
 
   const [confirmDlg, setConfirmDlg] = useState(null);
+  const [invoiceTarget, setInvoiceTarget] = useState(null);
+  const [viewInvoice, setViewInvoice] = useState(null);
 
   const [productModal, setProductModal] = useState(null);
   const [productForm, setProductForm]   = useState({ products: [{ product_id: '', quantity: 1 }] });
@@ -232,6 +315,7 @@ export default function AdminLavages() {
   paymentModal,
   productModal,
   confirmDlg,
+  viewInvoice,
 ]);
 
   const productById = useMemo(() => {
@@ -294,6 +378,9 @@ export default function AdminLavages() {
 
   const submit = async (e) => {
     e.preventDefault();
+    if (!(form.client_name || '').trim()) return toast.error('Le client est obligatoire');
+    if (!(form.washer_name || '').trim()) return toast.error('Le laveur est obligatoire');
+    if (!form.time_lavage) return toast.error("L'heure du lavage est obligatoire");
     setSubmitting(true);
     const payload = {
       ...form,
@@ -465,7 +552,7 @@ export default function AdminLavages() {
   const totalPages = Math.ceil(filteredLavages.length / itemsPerView);
   const paginated = filteredLavages.slice((currentPage - 1) * itemsPerView, currentPage * itemsPerView);
 
-  const anyModalOpen = showModal || paymentModal || productModal;
+  const anyModalOpen = showModal || paymentModal || productModal || viewInvoice;
 
   const statCards = [
     { label: "Total",        value: stats.total       || 0, icon: <Droplet size={20} />,      color: "blue"   },
@@ -522,8 +609,8 @@ export default function AdminLavages() {
                              onChange={e => setForm({ ...form, date_lavage: e.target.value })} />
                     </div>
                     <div className="inline-field">
-                      <label>Heure</label>
-                      <input type="time" className="inline-input" value={form.time_lavage || ''}
+                      <label>Heure *</label>
+                      <input type="time" required className="inline-input" value={form.time_lavage || ''}
                              onChange={e => setForm({ ...form, time_lavage: e.target.value })} />
                     </div>
                     <div className="inline-field">
@@ -562,14 +649,14 @@ export default function AdminLavages() {
                   <div className="inline-section-header"><Car size={18} /><h3>Véhicule & Client</h3></div>
                   <div className="inline-grid-2">
                     <div className="inline-field" style={{ gridColumn: '1 / -1' }}>
-                      <label>Client</label>
-                      <input className="inline-input" placeholder="Saisir le nom du client"
+                      <label>Client *</label>
+                      <input required className="inline-input" placeholder="Saisir le nom du client"
                              value={form.client_name || ''}
                              onChange={e => setForm({ ...form, client_name: e.target.value })} />
                     </div>
                     <div className="inline-field" style={{ gridColumn: '1 / -1' }}>
-                      <label>Laveur (nom)</label>
-                      <input className="inline-input" value={form.washer_name || ''}
+                      <label>Laveur (nom) *</label>
+                      <input required className="inline-input" placeholder="Saisir le nom du laveur" value={form.washer_name || ''}
                              onChange={e => setForm({ ...form, washer_name: e.target.value })} />
                     </div>
                   </div>
@@ -647,29 +734,19 @@ export default function AdminLavages() {
 
                 <div className="inline-section">
                   <div className="inline-section-header"><ImageIcon size={18} /><h3>Photos</h3></div>
-                  <div className="inline-field">
-                    <label>Photos avant</label>
-                    <input type="file" accept="image/*" multiple onChange={e => onPhotoChange('photos_before', e.target.files)} />
-                    <div className="photo-previews">
-                      {(form.photos_before || []).map((p, i) => (
-                        <div key={i} className="photo-preview">
-                          <img src={p} alt="" />
-                          <button type="button" className="photo-preview-remove" onClick={() => removePhoto('photos_before', i)}>×</button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="inline-field" style={{ marginTop: '0.75rem' }}>
-                    <label>Photos après</label>
-                    <input type="file" accept="image/*" multiple onChange={e => onPhotoChange('photos_after', e.target.files)} />
-                    <div className="photo-previews">
-                      {(form.photos_after || []).map((p, i) => (
-                        <div key={i} className="photo-preview">
-                          <img src={p} alt="" />
-                          <button type="button" className="photo-preview-remove" onClick={() => removePhoto('photos_after', i)}>×</button>
-                        </div>
-                      ))}
-                    </div>
+                  <PhotoPicker
+                    id="photos-before" label="Photos avant" tone="before" icon={Camera}
+                    photos={form.photos_before}
+                    onAdd={(files) => onPhotoChange('photos_before', files)}
+                    onRemove={(i) => removePhoto('photos_before', i)}
+                  />
+                  <div style={{ marginTop: '1rem' }}>
+                    <PhotoPicker
+                      id="photos-after" label="Photos après" tone="after" icon={ImagePlus}
+                      photos={form.photos_after}
+                      onAdd={(files) => onPhotoChange('photos_after', files)}
+                      onRemove={(i) => removePhoto('photos_after', i)}
+                    />
                   </div>
                 </div>
               </div>
@@ -856,6 +933,15 @@ export default function AdminLavages() {
         </div>
       )}
 
+      {/* ============ VOIR FACTURE (inline, comme Voir contrat) ============ */}
+      {viewInvoice && (
+        <InvoiceViewPage
+          invoice={buildLavageInvoice(viewInvoice)}
+          onClose={() => setViewInvoice(null)}
+          onDownload={() => setInvoiceTarget(viewInvoice)}
+        />
+      )}
+
       {/* ============ MAIN LIST ============ */}
       {!anyModalOpen && (
         <div className="ac-wrap">
@@ -1031,7 +1117,10 @@ export default function AdminLavages() {
                               <button type="button" className="ac-action-btn ac-action-info" onClick={() => openPayment(l)} title="Paiement">
                                 <CreditCard size={15} />
                               </button>
-                              <button type="button" className="ac-action-btn ac-action-invoice" onClick={() => lavageInvoice(l)} title="Facture (PDF)">
+                              <button type="button" className="ac-action-btn ac-action-view" onClick={() => setViewInvoice(l)} title="Voir facture">
+                                <Eye size={15} />
+                              </button>
+                              <button type="button" className="ac-action-btn ac-action-invoice" onClick={() => setInvoiceTarget(l)} title="Télécharger la facture (PDF)">
                                 <Receipt size={15} />
                               </button>
                               <button type="button" className="ac-action-btn ac-action-primary" onClick={() => openProductModal(l)} title="Produits">
@@ -1132,7 +1221,10 @@ export default function AdminLavages() {
                           <button type="button" onClick={() => openPayment(l)} className="ac-card-btn ac-action-info">
                             <CreditCard size={17} /><span>Paiement</span>
                           </button>
-                          <button type="button" onClick={() => lavageInvoice(l)} className="ac-card-btn ac-action-invoice">
+                          <button type="button" onClick={() => setViewInvoice(l)} className="ac-card-btn ac-action-view">
+                            <Eye size={17} /><span>Voir facture</span>
+                          </button>
+                          <button type="button" onClick={() => setInvoiceTarget(l)} className="ac-card-btn ac-action-invoice">
                             <Receipt size={17} /><span>Facture</span>
                           </button>
                           <button type="button" onClick={() => openProductModal(l)} className="ac-card-btn ac-action-primary">
@@ -1241,7 +1333,10 @@ export default function AdminLavages() {
                         <button type="button" onClick={() => openPayment(l)} className="ac-card-btn ac-action-info">
                           <CreditCard size={17} /><span>Paiement</span>
                         </button>
-                          <button type="button" onClick={() => lavageInvoice(l)} className="ac-card-btn ac-action-invoice">
+                          <button type="button" onClick={() => setViewInvoice(l)} className="ac-card-btn ac-action-view">
+                            <Eye size={17} /><span>Voir facture</span>
+                          </button>
+                          <button type="button" onClick={() => setInvoiceTarget(l)} className="ac-card-btn ac-action-invoice">
                             <Receipt size={17} /><span>Facture</span>
                           </button>
                         <button type="button" onClick={() => openProductModal(l)} className="ac-card-btn ac-action-primary">
@@ -1293,6 +1388,19 @@ export default function AdminLavages() {
           </div>
         );
       })()}
+
+      {/* ============ MODAL FACTURE : AVEC / SANS CACHET ============ */}
+      {invoiceTarget && (
+        <InvoiceCachetModal
+          subtitle={`FAC-L-${String(invoiceTarget.id).padStart(5, '0')}`}
+          onClose={() => setInvoiceTarget(null)}
+          onChoose={(withCachet) => {
+            const l = invoiceTarget;
+            setInvoiceTarget(null);
+            downloadInvoice(buildLavageInvoice(l), withCachet);
+          }}
+        />
+      )}
 
       <Styles />
     </div>
@@ -1888,6 +1996,86 @@ function Styles() {
     .rv .inline-form-title h2 { font-size: 1.05rem; }
     .rv .inline-form { padding: 12px; }
 }
+/* ---------- Boutons photos avant / après ---------- */
+.rv .photo-input-hidden { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.rv .photo-btn {
+    --pb: #1da1e8; --pb-bg: rgba(29, 161, 232, 0.08); --pb-tx: #0f84c4;
+    position: relative; display: flex; align-items: center; gap: 14px; width: 100%;
+    min-height: 68px; padding: 12px 16px; text-align: left; cursor: pointer;
+    border: 2px dashed var(--pb); border-radius: 16px;
+    background: var(--pb-bg); color: var(--tx); font-family: inherit;
+    transition: transform 0.12s, background 0.15s, border-style 0.15s, box-shadow 0.15s;
+}
+.rv .photo-btn-after { --pb: #10b981; --pb-bg: rgba(16, 185, 129, 0.08); --pb-tx: #047857; }
+.rv .photo-btn:hover, .rv .photo-btn.drag {
+    border-style: solid; transform: translateY(-1px);
+    box-shadow: 0 10px 22px -14px var(--pb);
+}
+.rv .photo-btn.drag { background: var(--pb-bg); box-shadow: 0 0 0 4px var(--pb-bg); }
+.rv .photo-btn:active { transform: translateY(2px); }
+.rv .photo-btn:focus-visible { outline: 3px solid var(--pb-bg); outline-offset: 2px; }
+.rv .photo-btn-ico {
+    width: 42px; height: 42px; border-radius: 13px; flex-shrink: 0;
+    background: var(--pb); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    transform: rotate(-5deg);
+}
+.rv .photo-btn-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rv .photo-btn-text strong { font-size: 0.88rem; font-weight: 800; color: var(--pb-tx); }
+.rv .photo-btn-text small { font-size: 0.72rem; color: var(--tx-2); font-weight: 600; }
+.rv .photo-btn-count {
+    margin-left: auto; min-width: 28px; height: 28px; padding: 0 9px; border-radius: 999px;
+    background: var(--pb); color: #fff; font-size: 0.78rem; font-weight: 900;
+    display: inline-flex; align-items: center; justify-content: center;
+}
+@media (prefers-color-scheme: dark) {
+    .rv .photo-btn { --pb-tx: #7dd3fc; }
+    .rv .photo-btn-after { --pb-tx: #6ee7b7; }
+}
+.rv .photo-previews { gap: 10px; }
+.rv .photo-preview { width: 72px; height: 72px; border-radius: 12px; }
+
+/* ---------- Facture : avec / sans cachet ---------- */
+.rv .invoice-modal { max-width: 460px; }
+.rv .invoice-icon {
+    width: 72px; height: 72px; margin: 0 auto 14px; border-radius: 50%;
+    background: #f3e8ff; border: 2px solid #8b5cf6; color: #8b5cf6;
+    display: flex; align-items: center; justify-content: center;
+}
+.rv .invoice-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 4px 0 14px; }
+.rv .invoice-choice {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    min-height: 132px; padding: 14px 10px; border-radius: 18px;
+    border: 1.5px solid var(--line-strong); background: var(--surface-2); color: var(--tx);
+    cursor: pointer; font-family: inherit; transition: transform 0.12s, background 0.15s, box-shadow 0.15s;
+}
+.rv .invoice-choice strong { font-size: 0.92rem; font-weight: 900; }
+.rv .invoice-choice small { font-size: 0.72rem; color: var(--tx-2); font-weight: 600; }
+.rv .invoice-choice svg { color: var(--tx-2); }
+.rv .invoice-choice:hover { transform: translateY(-2px); box-shadow: 0 10px 24px -12px rgba(0, 0, 0, 0.35); }
+.rv .invoice-choice:active { transform: translateY(2px); }
+.rv .invoice-choice-primary { background: var(--acc); color: #0a0a0a; }
+.rv .invoice-choice-primary small { color: rgba(10, 10, 10, 0.7); }
+.rv .invoice-choice-primary:hover { background: var(--acc-d); }
+.rv .invoice-cachet-preview {
+    width: 64px; height: 46px; object-fit: contain; border-radius: 8px;
+    background: #fff; padding: 3px; border: 1px solid rgba(10, 10, 10, 0.15);
+}
+@media (prefers-color-scheme: dark) {
+    .rv .invoice-icon { background: rgba(139, 92, 246, 0.18); }
+}
+@media (max-width: 768px) {
+    .rv .invoice-modal .modal-btn { flex: 0 0 auto; width: 100%; height: 52px; }
+    .rv .invoice-choice { min-height: 120px; }
+}
+
+/* ---------- Bouton voir facture ---------- */
+.rv .ac-action-view { color: #0891b2; }
+.rv .ac-action-btn.ac-action-view:hover, .rv .ac-card-btn.ac-action-view:hover, .rv .ac-card-btn.ac-action-view:active { background: #cffafe; }
+@media (prefers-color-scheme: dark) {
+    .rv .ac-action-btn.ac-action-view:hover, .rv .ac-card-btn.ac-action-view:hover, .rv .ac-card-btn.ac-action-view:active { background: rgba(8, 145, 178, 0.25); }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .rv *, .rv *::before, .rv *::after { animation: none !important; transition: none !important; }
 }
