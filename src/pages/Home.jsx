@@ -170,9 +170,9 @@ export default function Home() {
       const v = car[field];
       if (v && typeof v === "string" && v.trim() !== "") {
         if (v.startsWith("http://") || v.startsWith("https://")) return v;
-        if (v.startsWith("/storage/")) return `http://localhost:8000${v}`;
-        if (!v.startsWith("/")) return `http://localhost:8000/storage/${v}`;
-        return `http://localhost:8000${v}`;
+        if (v.startsWith("/storage/")) return `https://jina-back-d-production.up.railway.app${v}`;
+        if (!v.startsWith("/")) return `https://jina-back-d-production.up.railway.app/storage/${v}`;
+        return `https://jina-back-d-production.up.railway.app${v}`;
       }
     }
     return null;
