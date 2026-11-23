@@ -2002,591 +2002,523 @@ const SignatureBlock = ({ label, signature = "", option = "show" }) => {
 };
 
 // ==================== Component: ManualContract ====================
-// ==================== Component: ManualContract (révisé) ====================
-const ManualContract = ({ 
-  formData, 
-  signatures, 
-  paperwork, 
-  displayOptions, 
+// Même rendu que ContractLocation (Jina Business) : 2 pages (recto = contrat, verso = conditions générales)
+const MC_LOGO = "/JinaLogo.png";
+
+const MC_CG_INTRO =
+  "Le présent contrat a été établi et prend date comme indiqué au recto. Il engage l'agence qui sera appelée « le loueur » et la personne ou la société qui signe ce contrat, qui sera dénommée « le locataire ».";
+
+const MC_CG_ARTICLES = [
+  {
+    title: "Article 1 : Utilisation de la voiture",
+    text:
+      "Le locataire s'engage à ne pas laisser conduire la voiture par d'autres personnes que lui-même ou les conducteurs agréés par le loueur et dont il se porte garant. Il s'engage à ne pas utiliser le véhicule à des fins illicites ni pour le transport de marchandises, à ne pas le faire participer à une compétition quelle qu'elle soit, ni à solliciter directement des documents douaniers. Il est interdit de surcharger le véhicule loué ou de transporter un nombre de passagers supérieur à celui porté sur le contrat, sous peine d'être déchu de l'assurance.",
+  },
+  {
+    title: "Art. 2 : Pas d'annulation",
+    text:
+      "Pas de remboursement en cas de problèmes personnels ni pour l'essence. Tout ce qui est pneumatique est à la charge du client. Les voitures doivent être garées dans des parkings payants avec gardiens ; le vol de la roue de secours est à la charge du CLIENT. Les procès-verbaux d'excès de vitesse sont à la charge du client.",
+  },
+  {
+    title: "Art. 3 : Essence et huile",
+    text:
+      "L'essence est à la charge du client. Le locataire doit vérifier en permanence les niveaux d'huile et d'eau, et vérifier les niveaux de la boîte de vitesses et du pont arrière tous les 1000 km ; les dépenses correspondantes lui seront remboursées sur justificatifs, sous peine d'avoir à payer une indemnité pour usure anormale.",
+  },
+  {
+    title: "Art. 4 : Entretien et réparation",
+    text:
+      "L'usure mécanique normale est à la charge du loueur. Toutes les réparations provenant soit d'une usure anormale, soit d'une négligence du locataire ou d'une cause accidentelle sont à sa charge et exécutées par nos soins. Si le véhicule est immobilisé en dehors de la région, les réparations, qu'elles soient dues à l'usure normale ou à une cause accidentelle, ne seront exécutées qu'après accord télégraphique du loueur ou de l'agent régional de la marque du véhicule, et devront faire l'objet d'une facture acquittée. En aucun cas et en aucune circonstance le locataire ne pourra réclamer de dommages et intérêts, que ce soit pour retard dans la remise de la voiture ou pour annulation de la location, ni pour immobilisation due à des réparations nécessaires par l'usure normale effectuées au cours de la location. La responsabilité du loueur ne pourra jamais être invoquée, même en cas d'accidents de personnes ou de choses résultant de vices ou de défauts de construction ou de réparations antérieures.",
+  },
+];
+
+const MC_CG_ASSURANCE_TITLE = "Art. 5 : Assurance";
+const MC_CG_ASSURANCE_INTRO = "Le locataire est garanti pour les risques suivants :";
+const MC_CG_ASSURANCE_ITEMS = [
+  "pour une somme illimitée, les accidents qu'il peut causer aux tiers, y compris ceux transportés à titre gracieux ;",
+  "contre le vol et l'incendie du véhicule loué, à l'exclusion des vêtements et de tous les objets transportés ;",
+  "les frais de rapatriement et d'immobilisation restent toujours à la charge du locataire, quelle que soit la formule d'assurance contractée ;",
+  "le locataire s'engage à déclarer au loueur, dans les 48 heures, et immédiatement aux autorités de police, tout accident, vol ou incendie même partiel, sous peine d'être déchu du bénéfice de l'assurance. Sa déclaration devra obligatoirement mentionner : les circonstances, la date, le lieu et l'heure, le numéro ou le nom de l'agent, le nom et l'adresse des témoins ainsi que le numéro de la voiture adverse. S'il y a lieu, il joindra à cette déclaration tout rapport de police, de gendarmerie ou constat d'huissier. Il ne devra en aucun cas discuter la responsabilité ni traiter ou transiger avec des tiers relativement à l'accident. Il paiera une indemnité de chômage de la voiture pendant toute la durée d'immobilisation provenant d'usure anormale ou d'accident.",
+];
+const MC_CG_ASSURANCE_AFTER = [
+  "La voiture n'est assurée que pour la durée de location. Le loueur décline toute responsabilité pour les accidents que le locataire aurait pu causer et dont il devra faire son affaire personnelle.",
+  "Il n'y a pas d'assurance pour tout conducteur non muni d'un permis en état de validité ou d'un permis datant de moins de 1 an. Le loueur décline toute responsabilité pour les accidents routiers ou dégâts à la voiture que le locataire pourrait causer pendant la période de location s'il a délibérément fourni au loueur de fausses informations concernant son identité, son adresse ou la validité de son permis de conduire.",
+];
+
+const MC_CG_ARTICLES_2 = [
+  {
+    title: "Art. 6 : Location, caution, prolongation",
+    text:
+      "Le prix de location, ainsi que la caution, sont déterminés par les tarifs en vigueur et payables d'avance. La caution ne pourra servir en aucun cas de paiement au locataire. Afin d'éviter toute contestation, le locataire doit faire parvenir le montant de la location en cours avant l'échéance indiquée. Si le locataire souhaite conserver la voiture pour un temps supérieur à celui indiqué sur le contrat, il devra obtenir l'accord du loueur, faute de quoi il s'expose à des poursuites pour détournement de voiture ou abus de confiance. La journée de location compte de 0 heure à 24 heures et toute journée commencée est due en entier.",
+  },
+  {
+    title: "Art. 7 : Juridiction",
+    text: "De convention expresse, en cas de litige, le tribunal compétent sera le tribunal de commerce de Casablanca.",
+  },
+];
+
+const MC_CG_ACCIDENT_TITLE = "Art. 8 : Pièces à fournir en cas d'accident";
+const MC_CG_ACCIDENT_ITEMS = [
+  "Procès-verbal de la police ou de la gendarmerie royale ou du représentant de la justice ; s'il s'agit d'un constat amiable, le constat bien rempli ;",
+  "photos de tous les papiers (carte grise, assurance et permis de conduire…) de la partie adverse ;",
+  "photos de la carte verte si le véhicule est non dédouané ou étranger.",
+];
+
+const MC_CG_ARTICLES_3 = [
+  {
+    title: "Art. 9 : Responsabilité",
+    text:
+      "Le locataire demeure seul responsable des vols des pièces automobiles, amendes, contraventions et procès-verbaux établis contre lui.",
+  },
+  {
+    title: "Art. 10 : Compétence",
+    text:
+      "De convention expresse, en cas de contestation quelconque, le tribunal de Casablanca sera seul compétent ; les frais de timbres et d'enregistrement seront à la charge du locataire.",
+  },
+];
+
+const MC_CG_KM_TITLE = "Article 11 : Kilométrage";
+const MC_CG_KM_TEXT =
+  "Le kilométrage est limité à 200 km par jour. Si le conducteur dépasse cette limite, il paiera un dirham (1 DH) par kilomètre supplémentaire.";
+const MC_CG_CANCEL_TITLE = "Conditions d'annulation :";
+const MC_CG_CANCEL_ITEMS = [
+  "Jusqu'à 48 h avant l'arrivée : sans frais.",
+  "Jusqu'à 24 h avant l'arrivée : 30 % du montant total.",
+  "No show / départ anticipé : 50 % du montant.",
+];
+
+const McFuelGauge = ({ label }) => {
+  const names = ["0", "1/4", "1/2", "3/4", "4/4"];
+  return (
+    <div className="cp-gauge">
+      <div className="cp-gauge-title">CARBURANT</div>
+      <svg viewBox="-8 0 136 78" width="124" height="71" aria-label={`${label} carburant`}>
+        <path d="M 14 62 A 46 46 0 0 1 106 62" fill="none" stroke="#111" strokeWidth="3" />
+        {[0, 0.25, 0.5, 0.75, 1].map((tk, i) => {
+          const a = Math.PI * (1 - tk);
+          return (
+            <g key={i}>
+              <line
+                x1={60 + 40 * Math.cos(a)} y1={62 - 40 * Math.sin(a)}
+                x2={60 + 48 * Math.cos(a)} y2={62 - 48 * Math.sin(a)}
+                stroke="#111" strokeWidth="2.5"
+              />
+              <text
+                x={60 + 58 * Math.cos(a)} y={66 - 56 * Math.sin(a)}
+                fontSize="8" fontWeight="800" textAnchor="middle" fill="#111"
+              >
+                {names[i]}
+              </text>
+            </g>
+          );
+        })}
+        <circle cx="60" cy="62" r="3.5" fill="#e5202e" />
+      </svg>
+    </div>
+  );
+};
+
+const McLine = ({ label, value = "", small = false }) => (
+  <div className={`cp-line ${small ? "small" : ""}`}>
+    <span className="cp-lab">{label}</span>
+    <span className="cp-fill"><span className="cp-val">{value}</span></span>
+  </div>
+);
+
+const McCheck = ({ on }) => <span className={`cp-box ${on ? "on" : ""}`}>{on ? "✓" : ""}</span>;
+
+const McSigBlock = ({ label, signature = "", option }) => {
+  if (option === "hide") return null;
+  const isImage = typeof signature === "string" && signature.startsWith("data:image/");
+  return (
+    <div className="cp-sig">
+      <div className="cp-sig-label">{label}</div>
+      <div className="cp-sig-box">
+        {option === "dash" ? (
+          <div className="cp-sig-text">___________</div>
+        ) : isImage ? (
+          <img src={signature} alt="Signature" style={{ maxHeight: 56, maxWidth: "100%" }} />
+        ) : (
+          signature && <div className="cp-sig-text">{signature}</div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const ManualContract = ({
+  formData = {},
+  signatures = {},
+  paperwork = {},
+  displayOptions = {},
   currentUser,
-  containerId = "manual-contract-print" 
+  containerId = "manual-contract-print",
 }) => {
-  // Fonctions utilitaires (copiées de ContractLocation)
+  // Numéro de contrat manuel : généré une seule fois (ne change plus à chaque frappe)
+  const [autoContractNo] = useState(
+    () => `MANUAL-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 10000)).padStart(4, "0")}`
+  );
+
   const getCurrentUserName = () => {
     let userName = "";
-    if (currentUser) {
-      userName = currentUser.Fullname || currentUser.fullname || currentUser.name || currentUser.username || "";
-    }
+    if (currentUser) userName = currentUser.Fullname || currentUser.fullname || currentUser.name || currentUser.username || "";
     if (!userName) {
       try {
-        const storedUser = localStorage.getItem("user");
-        if (storedUser) {
-          const userData = JSON.parse(storedUser);
-          userName = userData.Fullname || userData.fullname || userData.name || "";
+        const stored = localStorage.getItem("user");
+        if (stored) {
+          const u = JSON.parse(stored);
+          userName = u.Fullname || u.fullname || u.name || "";
         }
-      } catch (error) {
-        console.error("Error reading user from localStorage:", error);
-      }
+      } catch (e) { /* ignore */ }
     }
-    return userName || "___________";
+    return userName || "";
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return "";
+  const formatDate = (d) => {
+    if (!d) return "";
     try {
-      const date = new Date(dateString);
+      const date = new Date(d);
       if (isNaN(date.getTime())) return "";
       return date.toLocaleDateString("fr-FR");
-    } catch {
-      return "";
-    }
+    } catch (e) { return ""; }
   };
 
   const calculateRentalDays = () => {
-  if (!reservation?.start_date || !reservation?.end_date) return null;
-  const start = new Date(reservation.start_date);
-  const end = new Date(reservation.end_date);
-  start.setHours(0, 0, 0, 0);
-  end.setHours(0, 0, 0, 0);
-  // Vérifier que start <= end
-  if (start > end) {
-    // Inverser si besoin (ou forcer à 1)
-    return 1;
-  }
-  const diffTime = end - start;
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays === 0 ? 1 : diffDays;
-};
-
-  const getDisplayOption = (section) => displayOptions[section] || "show";
-  const getDisplayValue = (option, actualValue, dashValue = "___________", hideValue = "") => {
-    if (option === "hide") return hideValue;
-    if (option === "dash") return dashValue;
-    return actualValue;
+    if (!formData?.start_date || !formData?.end_date) return null;
+    const s = new Date(formData.start_date);
+    const e = new Date(formData.end_date);
+    if (isNaN(s.getTime()) || isNaN(e.getTime())) return null;
+    s.setHours(0, 0, 0, 0);
+    e.setHours(0, 0, 0, 0);
+    if (e < s) return 1;
+    const diff = Math.ceil(Math.abs(e - s) / (1000 * 60 * 60 * 24));
+    return diff === 0 ? 1 : diff;
   };
 
+  const opt = (k) => displayOptions[k] || "show";
+  const clientOpt = opt("clientInfo");
+  const secondOpt = opt("secondDriver");
+  const vehicleOpt = opt("vehicleInfo");
+  const datesOpt = opt("rentalDates");
+  const daysOpt = opt("rentalDays");
+  const kmOpt = opt("kilometrage");
+  const pricesOpt = opt("prices");
+  const deliveryOpt = opt("deliveryReception");
+  const sigOpt = opt("signatures");
+  const insuranceOpt = opt("insurance");
+  const depositOpt = opt("depositGuarantee");
+
+  const dv = (option, actual, dash = "___________", hide = "") => {
+    if (option === "hide") return hide;
+    if (option === "dash") return dash;
+    return actual;
+  };
+
+  const money = (v) => (v === undefined || v === null || v === "" ? "" : `${v} DH`);
+  const hasSecond =
+    formData.has_second_driver === true && !!(formData.second_driver_nom || formData.second_driver_prenom);
+  const sd = (getter) => {
+    if (secondOpt === "hide") return "";
+    if (secondOpt === "dash") return "___________";
+    return hasSecond ? getter(formData) || "" : "";
+  };
+
+  const rentalDays = Number(formData.rental_days) > 0 ? Number(formData.rental_days) : calculateRentalDays();
+  const prolong = Number(formData.prolongation_days) || 0;
+  const total = formData.total_price === "" || formData.total_price == null ? null : Number(formData.total_price);
+  const paid = formData.amount_paid === "" || formData.amount_paid == null ? 0 : Number(formData.amount_paid);
+  const remaining = total !== null && !isNaN(total) && !isNaN(paid) ? total - paid : "";
+
+  const contractNo = formData.contract_number || autoContractNo;
+  const carName = `${formData.car_brand || ""} ${formData.car_model || ""}`.trim();
+  const clientName = `${formData.client_nom || ""} ${formData.client_prenom || ""}`.trim();
+  const locataireSignature = signatures.locataire_image || signatures.locataire || "";
   const currentUserName = getCurrentUserName();
-  const rentalDays = formData.rental_days || calculateRentalDays();
-  const dailyPrice = (formData.total_price && rentalDays) 
-    ? (formData.total_price / rentalDays).toFixed(2) 
-    : formData.price_per_day || "—";
 
-  // Vérifier si un deuxième conducteur est présent
-  const hasSecondDriver = formData.has_second_driver === true && (
-    formData.second_driver_nom || formData.second_driver_prenom
-  );
-
-  // Rendu du contrat
   return (
-    <div className="contract-container-print" id={containerId}>
-      {/* En-tête */}
-      <table className="contract-header-table" cellPadding="0" cellSpacing="0">
-        <tbody>
-          <tr>
-            <td className="header-left">
-              <div className="company-name">SMAITI CAR</div>
-              <div className="company-slogan">LOCATION DE VOITURE</div>
-              <div className="company-phone"><Phone size={12} style={{ marginRight: "4px", display: "inline" }} /> 0665 921 921</div>
-            </td>
-            <td className="header-center">
-              <img src={logoImage} alt="Logo" className="contract-logo-print" />
-            </td>
-            <td className="header-right">
-              <div className="contract-number-box stylish">
-                <div className="contract-number-label">CONTRAT N°</div>
-                <div className="contract-number-value">
-                  MANUAL-{new Date().getFullYear()}-{Math.floor(Math.random() * 10000).toString().padStart(4, "0")}
-                </div>
-              </div>
-              <div className="arabic-text">كراء السيارات</div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+    <div className="mc-root" id={containerId}>
+      {/* ============================ PAGE 1 : RECTO ============================ */}
+      <div className="cp-page cp-front">
+        <img src={MC_LOGO} alt="" className="cp-watermark" />
 
-      <div className="contract-title-print">CONTRAT DE LOCATION</div>
+        <div className="cp-head">
+          <div className="cp-head-logo">
+            <img src={MC_LOGO} alt="Jina Business" />
+          </div>
+          <div className="cp-head-mid">
+            <div className="cp-road">RESPECTEZ LE CODE DE LA ROUTE</div>
+            <div className="cp-road-sub">
+              Tout procès pour infraction du Code de la Route<br />
+              Date de la période de location du véhicule<br />
+              sera supporté par le locataire dont les coordonnées<br />
+              seront communiquées directement aux services de<br />
+              Police ou de la Gendarmerie, avec copie du présent contrat de location
+            </div>
+          </div>
+          <div className="cp-open">7j/7 Ouvert</div>
+        </div>
 
-      {/* Deux colonnes */}
-      <table className="contract-content-table" cellPadding="0" cellSpacing="0">
-        <tbody>
-          <tr>
-            <td className="contract-left-col">
-              {/* LOCATAIRE */}
-              <div className="contract-section">
-                <div className="section-title-print">LOCATAIRE</div>
-                <div className="section-content">
-                  <div className="field-row"><span className="field-label">Nom :</span><span className="field-value">{getDisplayValue(getDisplayOption("clientInfo"), formData.client_nom || "—")}</span></div>
-                  <div className="field-row"><span className="field-label">Prénom :</span><span className="field-value">{getDisplayValue(getDisplayOption("clientInfo"), formData.client_prenom || "—")}</span></div>
-                  <div className="field-row"><span className="field-label">Date naissance :</span><span className="field-value">{getDisplayValue(getDisplayOption("clientInfo"), formatDate(formData.client_date_naissance) || "—")}</span></div>
-                  <div className="field-row"><span className="field-label">Lieu naissance :</span><span className="field-value">{getDisplayValue(getDisplayOption("clientInfo"), formData.client_lieu_naissance || "—")}</span></div>
-                  <div className="field-row"><span className="field-label">CIN :</span><span className="field-value">{getDisplayValue(getDisplayOption("clientInfo"), formData.client_cin || "—")}</span></div>
-                  <div className="field-row"><span className="field-label">Expire le :</span><span className="field-value">{getDisplayValue(getDisplayOption("clientInfo"), formatDate(formData.client_cin_expiry) || "—")}</span></div>
-                  <div className="field-row"><span className="field-label">Permis N° :</span><span className="field-value">{getDisplayValue(getDisplayOption("clientInfo"), formData.client_permis || "—")}</span></div>
-                  <div className="field-row"><span className="field-label">Expire le :</span><span className="field-value">{getDisplayValue(getDisplayOption("clientInfo"), formatDate(formData.client_permis_expiry) || "—")}</span></div>
-                  <div className="field-row"><span className="field-label">Adresse :</span><span className="field-value">{getDisplayValue(getDisplayOption("clientInfo"), formData.client_address || "—")}</span></div>
-                  <div className="field-row"><span className="field-label">Téléphone :</span><span className="field-value">{getDisplayValue(getDisplayOption("clientInfo"), formData.client_phone || "—")}</span></div>
-                  <div className="field-row"><span className="field-label">Email :</span><span className="field-value">{getDisplayValue(getDisplayOption("clientInfo"), formData.client_email || "—")}</span></div>
-                </div>
-              </div>
+        <div className="cp-title-row">
+          <div>
+            <div className="cp-title-small">Location de voiture</div>
+            <div className="cp-title-big">CONTRAT DE LOCATION</div>
+          </div>
+          <div className="cp-late">
+            Si le retour de la véhicule dépassé 19h<br />vous devez payer une pénalité de retard de 200 dhs
+          </div>
+          <div className="cp-no">
+            <span>CONTRAT N°</span>
+            <b>{contractNo}</b>
+          </div>
+        </div>
 
-              {/* DEUXIÈME CONDUCTEUR */}
-              <div className="contract-section">
-                <div className="section-title-print">DEUXIÈME CONDUCTEUR</div>
-                <div className="section-content">
-                  {getDisplayOption("secondDriver") === "hide" ? (
-                    <>
-                      <div className="field-row"><span className="field-label">Nom :</span><span className="field-value"></span></div>
-                      <div className="field-row"><span className="field-label">Prénom :</span><span className="field-value"></span></div>
-                      <div className="field-row"><span className="field-label">Date naissance :</span><span className="field-value"></span></div>
-                      <div className="field-row"><span className="field-label">Lieu naissance :</span><span className="field-value"></span></div>
-                      <div className="field-row"><span className="field-label">CIN :</span><span className="field-value"></span></div>
-                      <div className="field-row"><span className="field-label">Expire le :</span><span className="field-value"></span></div>
-                      <div className="field-row"><span className="field-label">Permis N° :</span><span className="field-value"></span></div>
-                      <div className="field-row"><span className="field-label">Expire le :</span><span className="field-value"></span></div>
-                      <div className="field-row"><span className="field-label">Adresse :</span><span className="field-value"></span></div>
-                      <div className="field-row"><span className="field-label">Téléphone :</span><span className="field-value"></span></div>
-                      <div className="field-row"><span className="field-label">Email :</span><span className="field-value"></span></div>
-                    </>
-                  ) : getDisplayOption("secondDriver") === "dash" ? (
-                    <>
-                      <div className="field-row"><span className="field-label">Nom :</span><span className="field-value">___________</span></div>
-                      <div className="field-row"><span className="field-label">Prénom :</span><span className="field-value">___________</span></div>
-                      <div className="field-row"><span className="field-label">Date naissance :</span><span className="field-value">___________</span></div>
-                      <div className="field-row"><span className="field-label">Lieu naissance :</span><span className="field-value">___________</span></div>
-                      <div className="field-row"><span className="field-label">CIN :</span><span className="field-value">___________</span></div>
-                      <div className="field-row"><span className="field-label">Expire le :</span><span className="field-value">___________</span></div>
-                      <div className="field-row"><span className="field-label">Permis N° :</span><span className="field-value">___________</span></div>
-                      <div className="field-row"><span className="field-label">Expire le :</span><span className="field-value">___________</span></div>
-                      <div className="field-row"><span className="field-label">Adresse :</span><span className="field-value">___________</span></div>
-                      <div className="field-row"><span className="field-label">Téléphone :</span><span className="field-value">___________</span></div>
-                      <div className="field-row"><span className="field-label">Email :</span><span className="field-value">___________</span></div>
-                    </>
-                  ) : (
-                    hasSecondDriver ? (
-                      <>
-                        <div className="field-row"><span className="field-label">Nom :</span><span className="field-value">{formData.second_driver_nom || "—"}</span></div>
-                        <div className="field-row"><span className="field-label">Prénom :</span><span className="field-value">{formData.second_driver_prenom || "—"}</span></div>
-                        <div className="field-row"><span className="field-label">Date naissance :</span><span className="field-value">{formatDate(formData.second_driver_date_naissance) || "—"}</span></div>
-                        <div className="field-row"><span className="field-label">Lieu naissance :</span><span className="field-value">{formData.second_driver_lieu_naissance || "—"}</span></div>
-                        <div className="field-row"><span className="field-label">CIN :</span><span className="field-value">{formData.second_driver_cin || "—"}</span></div>
-                        <div className="field-row"><span className="field-label">Expire le :</span><span className="field-value">{formatDate(formData.second_driver_cin_expiry) || "—"}</span></div>
-                        <div className="field-row"><span className="field-label">Permis N° :</span><span className="field-value">{formData.second_driver_permis || "—"}</span></div>
-                        <div className="field-row"><span className="field-label">Expire le :</span><span className="field-value">{formatDate(formData.second_driver_permis_expiry) || "—"}</span></div>
-                        <div className="field-row"><span className="field-label">Adresse :</span><span className="field-value">{formData.second_driver_address || "—"}</span></div>
-                        <div className="field-row"><span className="field-label">Téléphone :</span><span className="field-value">{formData.second_driver_phone || "—"}</span></div>
-                        <div className="field-row"><span className="field-label">Email :</span><span className="field-value">{formData.second_driver_email || "—"}</span></div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="field-row"><span className="field-label">Nom :</span><span className="field-value">—</span></div>
-                        <div className="field-row"><span className="field-label">Prénom :</span><span className="field-value">—</span></div>
-                        <div className="field-row"><span className="field-label">Date naissance :</span><span className="field-value">—</span></div>
-                        <div className="field-row"><span className="field-label">Lieu naissance :</span><span className="field-value">—</span></div>
-                        <div className="field-row"><span className="field-label">CIN :</span><span className="field-value">—</span></div>
-                        <div className="field-row"><span className="field-label">Expire le :</span><span className="field-value">—</span></div>
-                        <div className="field-row"><span className="field-label">Permis N° :</span><span className="field-value">—</span></div>
-                        <div className="field-row"><span className="field-label">Expire le :</span><span className="field-value">—</span></div>
-                        <div className="field-row"><span className="field-label">Adresse :</span><span className="field-value">—</span></div>
-                        <div className="field-row"><span className="field-label">Téléphone :</span><span className="field-value">—</span></div>
-                        <div className="field-row"><span className="field-label">Email :</span><span className="field-value">—</span></div>
-                      </>
-                    )
-                  )}
-                </div>
-              </div>
-            </td>
+        <div className="cp-cols">
+          <div className="cp-col">
+            <div className="cp-pill red">LOCATAIRE</div>
+            <McLine label="Nom / Prénom :" value={dv(clientOpt, clientName)} />
+            <McLine label="Né(e) le / à :" value={dv(clientOpt, [formatDate(formData.client_date_naissance), formData.client_lieu_naissance].filter(Boolean).join(" – "))} />
+            <McLine label="CIN / Passeport :" value={dv(clientOpt, formData.client_cin)} />
+            <McLine label="Expire le :" value={dv(clientOpt, formatDate(formData.client_cin_expiry))} />
+            <McLine label="Permis N° :" value={dv(clientOpt, formData.client_permis)} />
+            <McLine label="Expire le :" value={dv(clientOpt, formatDate(formData.client_permis_expiry))} />
+            <McLine label="Tél :" value={dv(clientOpt, formData.client_phone)} />
+            <McLine label="Adresse :" value={dv(clientOpt, formData.client_address)} />
+            <McLine label="Email :" value={dv(clientOpt, formData.client_email)} small />
 
-            <td className="contract-right-col">
-              {/* VÉHICULE */}
-              <div className="contract-section">
-                <div className="section-title-print">VÉHICULE</div>
-                <div className="section-content">
-                  <div className="field-row"><span className="field-label">Immatriculation :</span><span className="field-value matricule-code">{getDisplayValue(getDisplayOption("vehicleInfo"), formData.car_matricule || "—")}</span></div>
-                  <div className="field-row"><span className="field-label">Marque/Modèle :</span><span className="field-value">{getDisplayValue(getDisplayOption("vehicleInfo"), `${formData.car_brand || ""} ${formData.car_model || ""}`.trim() || "—")}</span></div>
-                  <div className="field-row"><span className="field-label">Couleur :</span><span className="field-value">{getDisplayValue(getDisplayOption("vehicleInfo"), formData.car_color || "—")}</span></div>
-                  <div className="field-row"><span className="field-label">Année :</span><span className="field-value">{getDisplayValue(getDisplayOption("vehicleInfo"), formData.car_year || "—")}</span></div>
-                  <div className="field-row"><span className="field-label">Carburant :</span><span className="field-value">{getDisplayValue(getDisplayOption("vehicleInfo"), formData.car_fuel || "—")}</span></div>
-                  <div className="field-row"><span className="field-label">Transmission :</span><span className="field-value">{getDisplayValue(getDisplayOption("vehicleInfo"), formData.car_transmission || "—")}</span></div>
-                </div>
-              </div>
+            <div className="cp-pill red second">2ème Conducteur</div>
+            <McLine label="Nom :" value={sd((c) => c.second_driver_nom)} />
+            <McLine label="Prénom :" value={sd((c) => c.second_driver_prenom)} />
+            <McLine label="CIN / Passeport :" value={sd((c) => c.second_driver_cin)} />
+            <McLine label="Permis N° :" value={sd((c) => c.second_driver_permis)} />
+            <McLine label="Adresse :" value={sd((c) => c.second_driver_address)} />
+          </div>
 
-              {/* LOCATION */}
-              <div className="contract-section">
-                <div className="section-title-print">LOCATION</div>
-                <div className="section-content">
-                  <div className="field-row"><span className="field-label">Départ :</span><span className="field-value">{getDisplayValue(getDisplayOption("rentalDates"), `${formatDate(formData.start_date)} à ${formData.start_time || "08:00"}`)}</span></div>
-                  <div className="field-row"><span className="field-label">Retour :</span><span className="field-value">{getDisplayValue(getDisplayOption("rentalDates"), `${formatDate(formData.end_date)} à ${formData.end_time || "18:00"}`)}</span></div>
-                  <div className="field-row"><span className="field-label">Durée :</span><span className="field-value">{getDisplayValue(getDisplayOption("rentalDays"), `${rentalDays} jours`)}</span></div>
-                  <div className="field-row"><span className="field-label">Km départ :</span><span className="field-value">{getDisplayValue(getDisplayOption("kilometrage"), `${formData.kilometrage_depart || "—"} km`)}</span></div>
-                  <div className="field-row"><span className="field-label">Km retour :</span><span className="field-value">{getDisplayValue(getDisplayOption("kilometrage"), formData.kilometrage_retour ? `${formData.kilometrage_retour} km` : "—")}</span></div>
-                  <div className="field-row"><span className="field-label">Livré par :</span><span className="field-value">{getDisplayValue(getDisplayOption("deliveryReception"), currentUserName)}</span></div>
-                  <div className="field-row"><span className="field-label">Reçu par :</span><span className="field-value">{getDisplayValue(getDisplayOption("deliveryReception"), currentUserName)}</span></div>
-                </div>
-              </div>
+          <div className="cp-col">
+            <div className="cp-pill ink">INFORMATION SUR VEHICULE</div>
+            <McLine label="Marque :" value={dv(vehicleOpt, carName)} />
+            <McLine label="Immatriculation :" value={dv(vehicleOpt, formData.car_matricule || "")} />
+            <div className="cp-line">
+              <span className="cp-lab">Date départ :</span>
+              <span className="cp-fill"><span className="cp-val">{dv(datesOpt, formatDate(formData.start_date))}</span></span>
+              <span className="cp-lab sm">heure :</span>
+              <span className="cp-fill short"><span className="cp-val">{dv(datesOpt, formData.start_time || "")}</span></span>
+            </div>
+            <div className="cp-line">
+              <span className="cp-lab">Date retour :</span>
+              <span className="cp-fill"><span className="cp-val">{dv(datesOpt, formatDate(formData.end_date))}</span></span>
+              <span className="cp-lab sm">heure :</span>
+              <span className="cp-fill short"><span className="cp-val">{dv(datesOpt, formData.end_time || "")}</span></span>
+            </div>
+            <McLine label="Durée :" value={dv(daysOpt, rentalDays ? `${rentalDays} jour${rentalDays > 1 ? "s" : ""}` : "")} />
+            <McLine label="Prolongation (1) :" value={prolong > 0 ? `${prolong} jour${prolong > 1 ? "s" : ""}` : ""} />
+            <McLine label="Prolongation (2) :" value="" />
+            <McLine label="Km départ :" value={dv(kmOpt, formData.kilometrage_depart ? `${formData.kilometrage_depart} km` : "")} small />
+            <McLine label="Km retour :" value={dv(kmOpt, formData.kilometrage_retour ? `${formData.kilometrage_retour} km` : "")} small />
 
-              {/* TARIFS */}
-              <div className="contract-section pricing-section">
-                <div className="section-title-print">TARIFS</div>
-                <div className="section-content">
-                  <div className="field-row"><span className="field-label">Prix journalier :</span><span className="field-value">{getDisplayValue(getDisplayOption("prices"), `${dailyPrice} DH`)}</span></div>
-                  <div className="field-row total-row"><span className="field-label">Total TTC :</span><span className="field-value total-amount">{getDisplayValue(getDisplayOption("prices"), `${formData.total_price || "—"} DH`)}</span></div>
-                  <div className="field-row"><span className="field-label">Montant payé :</span><span className="field-value">{getDisplayValue(getDisplayOption("prices"), `${formData.amount_paid || "0"} DH`)}</span></div>
-                  <div className="field-row"><span className="field-label">Reste à payer :</span><span className="field-value remaining-amount">{getDisplayValue(getDisplayOption("prices"), `${formData.total_price - formData.amount_paid || "0"} DH`)}</span></div>
-                </div>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+            <div className="cp-gap" />
+            <McLine label="Total :" value={dv(pricesOpt, money(formData.total_price))} />
+            <McLine label="Avance :" value={dv(pricesOpt, money(formData.amount_paid))} />
+            <McLine label="Reste :" value={dv(pricesOpt, money(remaining))} />
+            <McLine label="Franchise Assurance :" value={dv(insuranceOpt, money(formData.franchise))} />
+            <McLine label="Caution :" value={dv(depositOpt, money(formData.caution))} />
+            <McLine label="Livré par :" value={dv(deliveryOpt, formData.livre_par || currentUserName)} />
+            <McLine label="Reçu par :" value={dv(deliveryOpt, formData.recu_par || "")} small />
+            <McLine label="Intermédiaire :" value={formData.intermediaire || ""} />
+          </div>
+        </div>
 
-      {/* CHECKLIST */}
-      <div className="contract-section checklist-section-print">
-        <div className="section-title-print">CHECKLIST - ÉTAT DU VÉHICULE</div>
-        <div className="checklist-content">
-          <table className="checklist-table" cellPadding="0" cellSpacing="0">
-            <tbody>
-              <tr>
-                <td className="checklist-cell">
-                  <div className="checklist-label">État de départ :</div>
-                  <CarDiagram />
-                </td>
-                <td className="checklist-cell">
-                  <div className="checklist-label">État de retour :</div>
-                  <CarDiagram />
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <div className="documents-row">
-            <span className="documents-label">Documents remis :</span>
-            <div className="documents-items">
-              <span className="doc-item"><CheckboxComponent checked={paperwork.carteGrise} /> Carte grise</span>
-              <span className="doc-item"><CheckboxComponent checked={paperwork.assurance} /> Assurance</span>
-              <span className="doc-item"><CheckboxComponent checked={paperwork.vignette} /> Vignette</span>
-              <span className="doc-item"><CheckboxComponent checked={paperwork.visiteTechnique} /> Visite technique</span>
-              <span className="doc-item"><CheckboxComponent checked={paperwork.autorisation} /> Autorisation</span>
+        <div className="cp-checkbar">Check List Etat Du Véhicule</div>
+        <div className="cp-check">
+          <div className="cp-check-cell">
+            <div className="cp-ba">AVANT</div>
+            <div className="cp-check-body">
+              <McFuelGauge label="Avant" />
+              <img src={checklistImage} alt="Etat du véhicule avant" className="cp-car" />
+            </div>
+          </div>
+          <div className="cp-check-cell">
+            <div className="cp-ba">APRÈS</div>
+            <div className="cp-check-body">
+              <McFuelGauge label="Après" />
+              <img src={checklistImage} alt="Etat du véhicule après" className="cp-car" />
+            </div>
+          </div>
+        </div>
+
+        <div className="cp-docs">
+          <b>Documents remis :</b>
+          <span><McCheck on={paperwork.carteGrise} /> Carte grise</span>
+          <span><McCheck on={paperwork.assurance} /> Assurance</span>
+          <span><McCheck on={paperwork.vignette} /> Vignette</span>
+          <span><McCheck on={paperwork.visiteTechnique} /> Visite technique</span>
+          <span><McCheck on={paperwork.autorisation} /> Autorisation</span>
+        </div>
+
+        <div className="cp-tires">Pneu petite voiture 600dhs / pneu moyenne voiture 1500dhs / pneu voiture 4x4 3000dhs</div>
+
+        <div className="cp-agree">
+          * Je reconnais avoir pris connaissance des conditions générales de location au verso du contrat et j'accepte de m'y conformer
+          {kmOpt !== "hide" && <> — Kilométrage limité à 200 km/jour, 1 DH par km supplémentaire.</>}
+        </div>
+
+        <div className="cp-sigs">
+          <McSigBlock label="Signature et cachet d'agent" signature={signatures.agent || ""} option={sigOpt} />
+          <McSigBlock label="Signature du locataire" signature={locataireSignature} option={sigOpt} />
+          <McSigBlock
+            label="Signature 2ème Conducteur"
+            signature={signatures.secondConducteur_image || signatures.secondConducteur || ""}
+            option={sigOpt}
+          />
+        </div>
+
+        <div className="cp-foot">
+          <b>Siège Social :</b> LOT ERRACHAD N° 706 TR 02 MAG 01 MEDIOUNA, CASABLANCA - Maroc<br />
+          <b>GSM :</b> 06 63 04 95 75 - 06 67 47 47 45 &nbsp; <b>Email :</b> jinabusiness0@gmail.com<br />
+          <b>TP :</b> 37701443 - <b>RC :</b> 624023 - <b>IF :</b> 65912528 - <b>CNSS :</b> 5317601<br />
+          <b>N° I.C.E :</b> 003478448000020
+        </div>
+      </div>
+
+      {/* ============================ PAGE 2 : VERSO ============================ */}
+      <div className="cp-page cp-back">
+        <img src={MC_LOGO} alt="" className="cp-watermark" />
+        <div className="cp-back-frame">
+          <div className="cp-back-title">Conditions générales de location</div>
+
+          <p className="cp-cg-intro">{MC_CG_INTRO}</p>
+
+          {MC_CG_ARTICLES.map((a) => (
+            <p className="cp-cg" key={a.title}><b>{a.title} :</b> {a.text}</p>
+          ))}
+
+          <p className="cp-cg"><b>{MC_CG_ASSURANCE_TITLE} :</b> {MC_CG_ASSURANCE_INTRO}</p>
+          <ol className="cp-cg-list">
+            {MC_CG_ASSURANCE_ITEMS.map((t, i) => <li key={i}>{t}</li>)}
+          </ol>
+          {MC_CG_ASSURANCE_AFTER.map((t, i) => <p className="cp-cg" key={i}>{t}</p>)}
+
+          {MC_CG_ARTICLES_2.map((a) => (
+            <p className="cp-cg" key={a.title}><b>{a.title} :</b> {a.text}</p>
+          ))}
+
+          <p className="cp-cg cp-cg-strong"><b>{MC_CG_ACCIDENT_TITLE}</b></p>
+          <ul className="cp-cg-list dash">
+            {MC_CG_ACCIDENT_ITEMS.map((t, i) => <li key={i}>{t}</li>)}
+          </ul>
+
+          {MC_CG_ARTICLES_3.map((a) => (
+            <p className="cp-cg" key={a.title}><b>{a.title} :</b> {a.text}</p>
+          ))}
+
+          <div className="cp-km-row">
+            <div className="cp-km">
+              <div className="cp-km-title">{MC_CG_KM_TITLE}</div>
+              <p>{MC_CG_KM_TEXT}</p>
+            </div>
+            <div className="cp-cancel">
+              <div className="cp-km-title">{MC_CG_CANCEL_TITLE}</div>
+              <ul>
+                {MC_CG_CANCEL_ITEMS.map((t, i) => <li key={i}>✓ {t}</li>)}
+              </ul>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Clause kilométrage */}
-      <div className="kilometrage-clause-section">
-        <div className="kilometrage-clause-title">⚠️ IMPORTANT - CLAUSE DE DÉPASSEMENT DE KILOMÉTRAGE</div>
-        <div className="kilometrage-clause-text">
-          En cas de dépassement du kilométrage mentionné (200km par jour), vous allez payer 1.5 DH pour chaque kilomètre additionnel au-delà de la limite autorisée.
-        </div>
-      </div>
-
-      {/* Observations et signatures */}
-      <div className="observations-row-print">
-        <ObservationBox title="Observations" option={getDisplayOption("observations")}>
-          <div className="observation-text">
-            {getDisplayValue(getDisplayOption("observations"),
-              `Véhicule loué en bon état général. Le client s'engage à retourner le véhicule dans le même état.${formData.notes ? ` Notes: ${formData.notes}` : ""}`,
-              "___________",
-              ""
-            )}
-          </div>
-        </ObservationBox>
-        <ObservationBox title="Assurance" option={getDisplayOption("insurance")}>
-          <div className="observation-text">
-            {getDisplayValue(getDisplayOption("insurance"),
-              "Assurance tous risques incluse. Franchise applicable en cas de sinistre.",
-              "___________",
-              ""
-            )}
-          </div>
-        </ObservationBox>
-        <ObservationBox title="Caution" isHalf option={getDisplayOption("depositGuarantee")}>
-          <div className="observation-text">
-            Caution: {getDisplayValue(getDisplayOption("depositGuarantee"), `${formData.amount_paid ? `${formData.amount_paid} DH` : "_________"} DH`, "_________", "")}
-          </div>
-        </ObservationBox>
-      </div>
-
-      <div className="signatures-row-print">
-        <SignatureBlock label="Signature de l'agent" signature={signatures.agent} option={getDisplayOption("signatures")} />
-        <SignatureBlock label="Signature du locataire" signature={signatures.locataire} option={getDisplayOption("signatures")} />
-        <SignatureBlock label="Signature 2ème conducteur" signature={signatures.secondConducteur} option={getDisplayOption("signatures")} />
-      </div>
-
-      {/* Pied de page */}
-      <div className="contract-footer-print">
-        <div className="footer-line">
-          <span style={{ display: "inline-flex", alignItems: "center", gap: "2px" }}>
-            <Building2 size={8} /> SMAITI CAR SARL - Capital 100 000 DH
-          </span>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: "2px", marginLeft: "6px" }}>
-            <FileCheck size={8} /> RC : 459659 - IF : 45640901 - TP : 30351369 - ICE : 002464789000069 - CNSS : 2473901
-          </span>
-        </div>
-        <div className="footer-line">
-          <span style={{ display: "inline-flex", alignItems: "center", gap: "2px" }}>
-            <MapPin size={8} /> Bassatine Al Oulfa, Casablanca
-          </span>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: "2px", marginLeft: "6px" }}>
-            <Phone size={8} /> 0665 92 19 21
-          </span>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: "2px", marginLeft: "6px" }}>
-            <Mail size={8} /> smaiticar2@gmail.com
-          </span>
-        </div>
-      </div>
-
-      {/* Styles CSS identiques à ceux de ContractLocation */}
       <style>{`
-        .contract-container-print {
-          max-width: 1100px;
-          margin: 0 auto;
-          background: white;
-          font-family: 'Inter', sans-serif;
-          font-size: 11px;
-          color: #1a2c3e;
-          line-height: 1.5;
-          padding: 0 6px;
-        }
-        .contract-header-table {
-          width: 100%;
-          border-bottom: 2px solid #d4af37;
-          margin-bottom: 10px;
-          padding-bottom: 6px;
-        }
-        .header-left { width: 30%; vertical-align: top; }
-        .header-center { width: 40%; text-align: center; vertical-align: middle; }
-        .header-right { width: 30%; text-align: right; vertical-align: top; }
-        .company-name { font-size: 20px; font-weight: 800; letter-spacing: 1.5px; color: #1e293b; }
-        .company-slogan { font-size: 10px; font-weight: 600; margin-top: 2px; color: #b8860b; }
-        .company-phone { font-size: 9px; margin-top: 4px; color: #475569; }
-        .contract-logo-print { height: 75px; width: auto; object-fit: contain; }
-        .contract-number-box { border: 1px solid #94a3b8; padding: 6px 12px; text-align: center; font-size: 10px; display: inline-block; background: #fefce8; border-radius: 8px; }
-        .arabic-text { margin-top: 6px; font-size: 12px; font-weight: 500; color: #475569; }
-        .contract-title-print {
-          text-align: center;
-          font-size: 17px;
-          font-weight: 800;
-          text-transform: uppercase;
-          letter-spacing: 2px;
-          margin-bottom: 10px;
-          border-bottom: 1px solid #94a3b8;
-          padding-bottom: 6px;
-          color: #0f172a;
-        }
-        .contract-content-table { width: 100%; }
-        .contract-left-col { width: 50%; vertical-align: top; padding-right: 12px; }
-        .contract-right-col { width: 50%; vertical-align: top; padding-left: 12px; }
-        .contract-section {
-          margin-bottom: 8px;
-          border: 1px solid #000000;
-          border-radius: 8px;
-          overflow: hidden;
-          background: white;
-        }
-        .section-title-print {
-          background: #cbd5e1;
-          padding: 6px 12px;
-          font-weight: 700;
-          font-size: 10px;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          border-bottom: 1px solid #000000;
-          color: #1e293b;
-        }
-        .checklist-section-print .checklist-table,
-        .checklist-section-print .doc-item,
-        .observation-box,
-        .signature-box,
-        .kilometrage-clause-section {
-          border-color: #000000 !important;
-        }
-        .checklist-section-print .section-title-print {
-          background: #cbd5e1 !important;
-        }
-        .obs-title {
-          background: #cbd5e1 !important;
-          border-bottom: 1px solid #000000;
-        }
-        .section-content { padding: 8px 12px; }
-        .field-row {
-          display: flex;
-          margin-bottom: 4px;
-          font-size: 10px;
-          align-items: baseline;
-        }
-        .field-label {
-          width: 100px;
-          font-weight: 600;
-          color: #475569;
-          flex-shrink: 0;
-        }
-        .field-value {
-          flex: 1;
-          border-bottom: 1px dotted #cbd5e1;
-          padding-left: 4px;
-          color: #0f172a;
-        }
-        .matricule-code { font-family: 'Courier New', monospace; font-weight: 700; color: #b8860b; letter-spacing: 0.5px; }
-        .total-row .total-amount { font-weight: 800; font-size: 12px; color: #b8860b; }
-        .remaining-amount { font-weight: 700; color: #dc2626; }
-        .pricing-section { border-left: 4px solid #d4af37; }
-        .checklist-section-print { margin: 8px 0; }
-        .checklist-table { width: 100%; margin-bottom: 8px; }
-        .checklist-cell { width: 50%; text-align: center; vertical-align: top; padding: 0 6px; }
-        .checklist-label { font-weight: 700; margin-bottom: 4px; font-size: 10px; color: #334155; }
-        .documents-row {
-          display: flex;
-          flex-wrap: wrap;
-          align-items: center;
-          padding: 8px 12px;
-          background: #f9fafb;
-          border-radius: 8px;
-          margin-top: 6px;
-          gap: 10px;
-        }
-        .documents-label { font-weight: 700; margin-right: 4px; font-size: 10px; color: #334155; }
-        .documents-items { display: flex; flex-wrap: wrap; gap: 10px; }
-        .doc-item {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          font-size: 9px;
-          background: white;
-          padding: 3px 8px;
-          border-radius: 12px;
-          border: 1px solid #94a3b8;
-        }
-        .checkbox-square {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 13px;
-          height: 13px;
-          border: 1.5px solid #334155;
-          background: white;
-          font-size: 9px;
-          font-weight: bold;
-          margin-right: 2px;
-          border-radius: 2px;
-        }
-        .checkbox-square.checked { background: #d4af37 !important; border-color: #d4af37 !important; color: #0f172a !important; }
-        .car-diagram-container img {
-          width: 100%;
-          max-width: 130px;
-          height: auto;
-          border: 1px solid #94a3b8;
-          border-radius: 6px;
-          background: #fafafa;
-          padding: 4px;
-        }
-        .kilometrage-clause-section {
-          margin: 10px 0;
-          padding: 10px 16px;
-          border: 2px solid #eab308;
-          border-radius: 10px;
-          background: #fefce8;
-          box-shadow: 0 1px 4px rgba(234, 179, 8, 0.15);
-        }
-        .kilometrage-clause-title {
-          font-size: 11px;
-          font-weight: 800;
-          color: #92400e;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          margin-bottom: 6px;
-          display: flex;
-          align-items: center;
-          gap: 4px;
-        }
-        .kilometrage-clause-text {
-          font-size: 10.5px;
-          color: #1a2c3e;
-          line-height: 1.5;
-          font-weight: 500;
-        }
-        .observations-row-print { display: flex; flex-wrap: wrap; gap: 12px; margin: 8px 0; }
-        .observation-box {
-          flex: 1;
-          border: 1px solid #94a3b8;
-          border-radius: 10px;
-          overflow: hidden;
-          background: white;
-        }
-        .observation-box.half-width { flex: 0 0 calc(33.33% - 8px); }
-        .obs-title {
-          display: block;
-          padding: 6px 12px;
-          background: #f8fafc;
-          font-weight: 700;
-          font-size: 10px;
-          border-bottom: 1px solid #94a3b8;
-          color: #1e293b;
-        }
-        .observation-content {
-          padding: 8px 12px;
-          font-size: 9.5px;
-          min-height: 50px;
-          color: #334155;
-        }
-        .signatures-row-print { display: flex; gap: 20px; margin: 10px 0; }
-        .signature-block { flex: 1; text-align: center; }
-        .signature-label { font-size: 9px; font-weight: 700; margin-bottom: 6px; color: #475569; }
-        .signature-box {
-          border: 1px solid #94a3b8;
-          height: 50px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: #fafafa;
-          border-radius: 6px;
-          overflow: hidden;
-        }
-        .signature-box img {
-          max-height: 45px;
-          max-width: 90%;
-          object-fit: contain;
-        }
-        .signature-text {
-          font-size: 9px;
-          font-style: italic;
-          color: #64748b;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          max-width: 100%;
-        }
-        .contract-footer-print {
-          margin-top: 8px;
-          padding-top: 6px;
-          border-top: 1px solid #d4af37;
-          text-align: center;
-          font-size: 8px;
-          color: #64748b;
-        }
-        .footer-line { margin-bottom: 2px; line-height: 1.3; }
-        .contract-number-box.stylish {
-          border: none;
-          background: #fefce857;
-          border-radius: 10px;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-          padding: 4px 14px;
-        }
-        .contract-number-box.stylish .contract-number-label { font-size: 9px; color: #92400e; letter-spacing: 1px; }
-        .contract-number-box.stylish .contract-number-value { font-size: 20px; font-weight: 800; color: #1a1a2e; }
-        @media print {
-          .contract-container-print { margin: 0; padding: 0; background: white; }
-          .checkbox-square.checked { background: black !important; border-color: black !important; color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .section-title-print { background: #f5f5f5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .documents-row { background: #f9f9f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .contract-number-box.stylish { background: #fefce8 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .kilometrage-clause-section { background: #fefce8 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        }
-        .contract-container-print .field-value { font-weight: 600; }
-        .contract-container-print .observation-content { font-weight: 500; }
-        .contract-container-print .kilometrage-clause-text { font-weight: 600; }
-      `}</style>
+.mc-root{--cr:#e5202e;--cb:#1da1e8;--ci:#0a0a0a;font-family:Archivo,'Segoe UI',Arial,sans-serif;color:#111;max-width:100%;overflow-x:auto;background:transparent}
+.mc-root *{box-sizing:border-box}
+.mc-root .cp-page{position:relative;width:210mm;height:297mm;margin:0 auto 18px;background:#fff;overflow:hidden;padding:9mm 10mm 8mm;border:1px solid #cfcfd6;box-shadow:0 4px 18px rgba(0,0,0,.12)}
+.mc-root .cp-watermark{position:absolute;left:50%;top:47%;width:78%;transform:translate(-50%,-50%);opacity:.07;pointer-events:none;z-index:0}
+.mc-root .cp-page > *:not(.cp-watermark){position:relative;z-index:1}
+.mc-root .cp-front{display:flex;flex-direction:column}
+.mc-root .cp-front .cp-foot{margin-top:auto}
+
+/* header */
+.mc-root .cp-head{display:flex;align-items:flex-start;gap:10px}
+.mc-root .cp-head-logo img{height:68px;width:auto;display:block}
+.mc-root .cp-head-mid{flex:1;text-align:center;padding-top:2px}
+.mc-root .cp-road{display:inline-block;font:900 17px Archivo,Arial,sans-serif;letter-spacing:.3px;transform:rotate(-4deg);margin-bottom:3px;color:#111}
+.mc-root .cp-road-sub{font-size:7px;line-height:1.35;color:#333}
+.mc-root .cp-open{font:italic 800 19px Archivo,Arial,sans-serif;color:var(--cr);transform:rotate(-5deg);padding-top:6px;white-space:nowrap}
+
+.mc-root .cp-title-row{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin:8px 0 6px}
+.mc-root .cp-title-small{font:800 15px Archivo,Arial,sans-serif;line-height:1.1}
+.mc-root .cp-title-big{font:900 23px Archivo,Arial,sans-serif;color:#fff;-webkit-text-stroke:1.2px var(--cr);letter-spacing:.8px;line-height:1.1}
+.mc-root .cp-late{font-size:9.5px;font-weight:700;line-height:1.35;text-align:center;flex:1}
+.mc-root .cp-no{border:1.5px solid #111;border-radius:10px;padding:3px 10px;text-align:center;line-height:1.2;background:#fff}
+.mc-root .cp-no span{display:block;font-size:7.5px;font-weight:800;letter-spacing:.8px;color:var(--cr)}
+.mc-root .cp-no b{font-size:15px;font-weight:900}
+
+/* columns */
+.mc-root .cp-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:6px}
+.mc-root .cp-pill{display:block;text-align:center;font:800 15px Archivo,Arial,sans-serif;letter-spacing:.3px;padding:3px 10px;border-radius:999px;color:#fff;margin-bottom:6px}
+.mc-root .cp-pill.red{background:var(--cr);border-radius:999px 0 0 999px}
+.mc-root .cp-pill.ink{background:var(--ci);border-radius:0 999px 999px 0}
+.mc-root .cp-pill.second{margin-top:12px;text-align:left;padding-left:14px;width:72%}
+.mc-root .cp-gap{height:10px}
+
+.mc-root .cp-line{display:flex;align-items:flex-end;gap:5px;margin-bottom:5px;min-height:18px}
+.mc-root .cp-line.small{margin-bottom:4px;min-height:16px}
+.mc-root .cp-lab{font:800 12.5px Archivo,Arial,sans-serif;white-space:nowrap;line-height:1.1;color:#111}
+.mc-root .cp-lab.sm{font-size:9px}
+.mc-root .cp-line.small .cp-lab{font-size:11px}
+.mc-root .cp-fill{flex:1;min-width:0;border-bottom:1.5px dotted #666;min-height:15px;display:flex;align-items:flex-end}
+.mc-root .cp-fill.short{flex:0 0 42px}
+.mc-root .cp-val{font:700 11.5px Archivo,Arial,sans-serif;line-height:1.15;padding:0 2px 1px;color:#0a0a0a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+
+/* check list */
+.mc-root .cp-checkbar{margin:12px 0 8px;background:var(--ci);color:#fff;text-align:center;font:800 17px Archivo,Arial,sans-serif;padding:2px 10px;border-radius:999px}
+.mc-root .cp-check{display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:0}
+.mc-root .cp-check-cell{padding:0 6px}
+.mc-root .cp-check-cell + .cp-check-cell{border-left:1.5px solid #111}
+.mc-root .cp-ba{font:900 19px Archivo,Arial,sans-serif;color:#fff;-webkit-text-stroke:1px var(--cr);letter-spacing:1px;text-align:center;line-height:1.1}
+.mc-root .cp-check-body{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.mc-root .cp-gauge{text-align:center;flex-shrink:0}
+.mc-root .cp-gauge-title{font:800 11px Archivo,Arial,sans-serif;letter-spacing:1px}
+.mc-root .cp-car{flex:1 1 0;width:0;min-width:0;height:auto;max-height:178px;object-fit:contain;display:block}
+
+.mc-root .cp-docs{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;font-size:10px;margin-top:4px}
+.mc-root .cp-docs span{display:inline-flex;align-items:center;gap:4px;font-weight:700}
+.mc-root .cp-box{display:inline-flex;align-items:center;justify-content:center;width:11px;height:11px;border:1.3px solid #111;border-radius:2px;font-size:9px;font-weight:900;line-height:1;color:var(--cr)}
+.mc-root .cp-tires{margin-top:10px;text-align:center;font:800 10.5px Archivo,Arial,sans-serif;color:var(--cr)}
+.mc-root .cp-agree{margin-top:8px;text-align:center;font-size:8.6px;font-weight:600;border:1.5px solid #111;border-bottom:0;border-radius:14px 14px 0 0;padding:4px 10px 3px;font-family:Georgia,'Times New Roman',serif}
+
+/* signatures */
+.mc-root .cp-sigs{display:grid;grid-template-columns:repeat(3,1fr);border:1.5px solid #111;border-radius:0 0 14px 14px;overflow:hidden}
+.mc-root .cp-sig + .cp-sig{border-left:1.5px solid #111}
+.mc-root .cp-sig-label{margin:5px auto 0;width:92%;background:var(--cr);color:#fff;text-align:center;font:800 9.5px Archivo,Arial,sans-serif;padding:2px 6px;border-radius:999px}
+.mc-root .cp-sig-box{height:72px;display:flex;align-items:center;justify-content:center;font-size:11px;padding:2px}
+
+.mc-root .cp-foot{margin-top:8px;text-align:center;font-size:10px;line-height:1.5;color:#111}
+.mc-root .cp-foot b{font-weight:800}
+
+/* back page */
+.mc-root .cp-back-frame{position:relative;height:100%;border:1.5px solid #111;padding:20px 20px 14px}
+.mc-root .cp-back-title{position:absolute;left:50%;top:-13px;transform:translateX(-50%);background:var(--ci);color:#fff;font:800 14px Archivo,Arial,sans-serif;padding:4px 40px;border-radius:999px;white-space:nowrap;z-index:2}
+.mc-root .cp-cg-intro,.mc-root .cp-cg{margin:0 0 7px;font-size:10.3px;line-height:1.42;text-align:justify;color:#111}
+.mc-root .cp-cg b{font-weight:800}
+.mc-root .cp-cg-strong{font-size:11px;margin-top:8px}
+.mc-root .cp-cg-list{margin:0 0 7px 18px;padding:0;font-size:10.3px;line-height:1.42;text-align:justify}
+.mc-root .cp-cg-list.dash{list-style:none;margin-left:6px}
+.mc-root .cp-cg-list.dash li::before{content:"- "}
+.mc-root .cp-km-row{display:flex;justify-content:space-between;gap:20px;margin-top:10px;align-items:flex-start}
+.mc-root .cp-km{flex:1}
+.mc-root .cp-km-title{font:800 12px Archivo,Arial,sans-serif;margin-bottom:3px}
+.mc-root .cp-km p{margin:0;font-size:10.5px;line-height:1.45}
+.mc-root .cp-cancel{flex:1}
+.mc-root .cp-cancel ul{list-style:none;margin:0;padding:0;font-size:10.5px;line-height:1.55}
+
+@media print{
+  .mc-root .cp-page{margin:0;border:0;box-shadow:none;page-break-after:always}
+  .mc-root .cp-page:last-child{page-break-after:auto}
+}
+
+.mc-root .cp-sig-text{font-size:11px}
+`}</style>
     </div>
   );
 };
+
 
 // ==================== Component: ContractDisplayOptions ====================
 const ContractDisplayOptions = ({ options, onOptionChange, onResetAll }) => {
@@ -5806,191 +5738,49 @@ const yearOptions = useMemo(() => {
     setSearchResults([]);
   };
 
-  // Manual Contract PDF generation
- // ==================== Génération du PDF du contrat manuel ====================
+  // ==================== Génération du PDF du contrat manuel (2 pages : recto + verso) ====================
 const generateManualContractPDF = async () => {
+  let clone = null;
   try {
     toast.loading("Génération du contrat en cours...", { id: "contract-pdf" });
 
-    // Récupérer l'élément du contrat (caché)
     const contractElement = document.getElementById("manual-contract-print");
     if (!contractElement) {
       toast.error("Élément du contrat non trouvé", { id: "contract-pdf" });
       return;
     }
 
-    // Cloner le contrat pour modifications
-    const contractClone = contractElement.cloneNode(true);
+    // Clone hors écran, en largeur A4, pour que chaque .cp-page soit rendue séparément
+    clone = contractElement.cloneNode(true);
+    clone.style.cssText =
+      "position:absolute;top:-99999px;left:0;width:210mm;margin:0;padding:0;background:#fff;box-sizing:border-box;overflow:visible;";
+    document.body.appendChild(clone);
 
-    // ---- Ajustements pour réduire la taille et tenir sur une page A4 ----
-    contractClone.style.width = "180mm";          // Réduction de la largeur
-    contractClone.style.height = "auto";
-    contractClone.style.padding = "6px";
-    contractClone.style.margin = "0";
-    contractClone.style.boxSizing = "border-box";
-    contractClone.style.backgroundColor = "white";
-    contractClone.style.fontSize = "9px";
-    contractClone.style.lineHeight = "1.3";
-
-    // Réduction des marges des sections
-    contractClone.querySelectorAll('.contract-section').forEach(s => {
-      s.style.marginBottom = "3px";
-      const content = s.querySelector('.section-content');
-      if (content) content.style.padding = "3px 6px";
+    // Pas de bordure / ombre / marge autour des pages dans le PDF
+    clone.querySelectorAll(".cp-page").forEach((p) => {
+      p.style.margin = "0";
+      p.style.border = "0";
+      p.style.boxShadow = "none";
     });
 
-    // Réduction des titres de section
-    contractClone.querySelectorAll('.section-title-print').forEach(t => {
-      t.style.padding = "3px 8px";
-      t.style.fontSize = "8px";
-    });
+    const images = Array.from(clone.querySelectorAll("img"));
+    await Promise.all(
+      images.map((img) =>
+        img.complete ? Promise.resolve() : new Promise((r) => { img.onload = r; img.onerror = r; })
+      )
+    );
+    await new Promise((r) => setTimeout(r, 150));
 
-    // Réduction des champs
-    contractClone.querySelectorAll('.field-row').forEach(row => {
-      row.style.fontSize = "8px";
-      row.style.marginBottom = "1px";
-    });
-    contractClone.querySelectorAll('.field-label').forEach(label => {
-      label.style.width = "70px";
-      label.style.fontSize = "8px";
-    });
+    const doc = new jsPDF("p", "mm", "a4");
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
 
-    // Logo et en-tête plus petits
-    const logo = contractClone.querySelector('.contract-logo-print');
-    if (logo) logo.style.height = "45px";
-    const companyName = contractClone.querySelector('.company-name');
-    if (companyName) companyName.style.fontSize = "15px";
-    const companySlogan = contractClone.querySelector('.company-slogan');
-    if (companySlogan) companySlogan.style.fontSize = "7px";
-    const companyPhone = contractClone.querySelector('.company-phone');
-    if (companyPhone) companyPhone.style.fontSize = "7px";
-    const contractTitle = contractClone.querySelector('.contract-title-print');
-    if (contractTitle) {
-      contractTitle.style.fontSize = "13px";
-      contractTitle.style.marginBottom = "4px";
-      contractTitle.style.paddingBottom = "3px";
+    const pages = clone.querySelectorAll(".cp-page");
+    for (let i = 0; i < pages.length; i++) {
+      const canvas = await html2canvas(pages[i], { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+      if (i > 0) doc.addPage();
+      doc.addImage(canvas.toDataURL("image/png", 1.0), "PNG", 0, 0, pageW, pageH);
     }
-
-    // Réduction des blocs de signature
-    contractClone.querySelectorAll('.signature-box').forEach(box => {
-      box.style.height = "30px";
-    });
-    contractClone.querySelectorAll('.signature-label').forEach(label => {
-      label.style.fontSize = "7px";
-      label.style.marginBottom = "2px";
-    });
-
-    // Observations
-    contractClone.querySelectorAll('.observation-box').forEach(box => {
-      const content = box.querySelector('.observation-content');
-      if (content) {
-        content.style.padding = "3px 6px";
-        content.style.fontSize = "7px";
-        content.style.minHeight = "20px";
-      }
-      const title = box.querySelector('.obs-title');
-      if (title) {
-        title.style.padding = "3px 8px";
-        title.style.fontSize = "7px";
-      }
-    });
-
-    // Clause kilométrage
-    const clause = contractClone.querySelector('.kilometrage-clause-section');
-    if (clause) {
-      clause.style.padding = "4px 10px";
-      clause.style.margin = "4px 0";
-      const title = clause.querySelector('.kilometrage-clause-title');
-      if (title) title.style.fontSize = "8px";
-      const text = clause.querySelector('.kilometrage-clause-text');
-      if (text) text.style.fontSize = "7px";
-    }
-
-    // Pied de page
-    const footer = contractClone.querySelector('.contract-footer-print');
-    if (footer) {
-      footer.style.fontSize = "6px";
-      footer.style.paddingTop = "3px";
-      footer.style.marginTop = "3px";
-    }
-
-    // Documents
-    contractClone.querySelectorAll('.doc-item').forEach(item => {
-      item.style.fontSize = "7px";
-      item.style.padding = "2px 5px";
-    });
-    const docsRow = contractClone.querySelector('.documents-row');
-    if (docsRow) {
-      docsRow.style.padding = "3px 6px";
-      docsRow.style.gap = "4px";
-    }
-
-    // Numéro de contrat
-    const numBox = contractClone.querySelector('.contract-number-box');
-    if (numBox) {
-      numBox.style.padding = "2px 6px";
-      const value = numBox.querySelector('.contract-number-value');
-      if (value) value.style.fontSize = "15px";
-      const label = numBox.querySelector('.contract-number-label');
-      if (label) label.style.fontSize = "6px";
-    }
-
-    // ---- Préparation du canvas ----
-    const tempContainer = document.createElement("div");
-    tempContainer.style.position = "fixed";
-    tempContainer.style.left = "-9999px";
-    tempContainer.style.top = "0";
-    tempContainer.style.width = "180mm";
-    tempContainer.style.height = "auto";
-    tempContainer.style.background = "white";
-    tempContainer.appendChild(contractClone);
-    document.body.appendChild(tempContainer);
-
-    // Attendre le chargement des images
-    const images = contractClone.querySelectorAll("img");
-    await Promise.all(Array.from(images).map(img => {
-      if (img.complete) return Promise.resolve();
-      return new Promise(resolve => { img.onload = resolve; img.onerror = resolve; });
-    }));
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    // Capturer
-    const canvas = await html2canvas(contractClone, {
-      scale: 2,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: "#ffffff",
-      width: contractClone.scrollWidth,
-      height: contractClone.scrollHeight,
-      windowWidth: contractClone.scrollWidth,
-      windowHeight: contractClone.scrollHeight
-    });
-
-    document.body.removeChild(tempContainer);
-
-    // ---- Génération du PDF ----
-    const doc = new jsPDF('p', 'mm', 'a4');
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-
-    const imgData = canvas.toDataURL('image/png');
-    // On réduit la largeur de l'image pour laisser des marges
-    const imgWidth = pageWidth - 16; // 8mm de chaque côté
-    let imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-    // Si l'image est trop haute, on la redimensionne pour tenir dans la page
-    if (imgHeight > pageHeight - 16) {
-      const scale = (pageHeight - 16) / imgHeight;
-      imgHeight = pageHeight - 16;
-      // On ajuste la largeur en conséquence pour garder les proportions
-      // mais on laisse la largeur constante (on peut aussi recalculer)
-    }
-
-    // Centrage vertical
-    const xOffset = (pageWidth - imgWidth) / 2;
-    const yOffset = (pageHeight - imgHeight) / 2;
-
-    doc.addImage(imgData, 'PNG', xOffset, yOffset, imgWidth, imgHeight);
 
     const filename = `contrat-manuel-${new Date().toISOString().split("T")[0]}.pdf`;
     downloadAndOpenPDF(doc, filename);
@@ -5998,6 +5788,8 @@ const generateManualContractPDF = async () => {
   } catch (error) {
     console.error("Erreur de génération du contrat:", error);
     toast.error("Erreur lors de la génération du contrat", { id: "contract-pdf" });
+  } finally {
+    if (clone && clone.parentNode) clone.parentNode.removeChild(clone);
   }
 };
 
@@ -6302,6 +6094,7 @@ const handleToggleExtend = (reservation) => {
   // Render contract manual form if open
   if (manualContractOpen) {
     return (
+      <div className="rv">
       <div className="inline-form-container">
         <div className="inline-form-header">
           <div className="inline-form-icon">
@@ -6321,7 +6114,6 @@ const handleToggleExtend = (reservation) => {
             <button
               onClick={() => setShowDisplayOptions(!showDisplayOptions)}
               className="inline-secondary-btn"
-              style={{ background: "transparent", borderColor: "#eab308" }}
             >
               <Settings size={16} />
               {showDisplayOptions ? "Masquer" : "Afficher"} les options d'affichage
@@ -6422,16 +6214,13 @@ const handleToggleExtend = (reservation) => {
               </div>
 
               <div className="inline-section">
-                <div className="checkbox-group" style={{ marginBottom: "0.5rem" }}>
-                  <input type="checkbox" id="hasSecondDriver" checked={manualFormData.has_second_driver} onChange={(e) => handleManualFormChange("has_second_driver", e.target.checked)} />
-                  <label htmlFor="hasSecondDriver">Ajouter un deuxième conducteur</label>
-                </div>
+                <div className="inline-section-header"><UserCircle size={18} /><h3>Deuxième conducteur</h3></div>
+                <label className="inline-checkbox">
+                  <input type="checkbox" checked={manualFormData.has_second_driver} onChange={(e) => handleManualFormChange("has_second_driver", e.target.checked)} />
+                  <span>Ajouter un deuxième conducteur</span>
+                </label>
                 {manualFormData.has_second_driver && (
                   <>
-                    <div className="inline-section-header">
-                      <UserCircle size={18} />
-                      <h3>Deuxième conducteur</h3>
-                    </div>
                     <div className="inline-grid-2">
                       <div className="inline-field"><label>Nom</label><input className="inline-input" value={manualFormData.second_driver_nom} onChange={(e) => handleManualFormChange("second_driver_nom", e.target.value)} /></div>
                       <div className="inline-field"><label>Prénom</label><input className="inline-input" value={manualFormData.second_driver_prenom} onChange={(e) => handleManualFormChange("second_driver_prenom", e.target.value)} /></div>
@@ -6497,7 +6286,7 @@ const handleToggleExtend = (reservation) => {
                   <Info size={18} />
                   <h3>Notes supplémentaires</h3>
                 </div>
-                <textarea className="inline-input" rows="3" value={manualFormData.notes} onChange={(e) => handleManualFormChange("notes", e.target.value)} placeholder="Notes..." style={{ resize: "vertical" }}></textarea>
+                <textarea className="inline-textarea" rows="3" value={manualFormData.notes} onChange={(e) => handleManualFormChange("notes", e.target.value)} placeholder="Notes..."></textarea>
               </div>
             </div>
           </div>
@@ -6523,318 +6312,530 @@ const handleToggleExtend = (reservation) => {
         </div>
 
         <style>{`
-          .inline-form-container {
-            background: white;
-            border-radius: 32px;
-            margin: 1.5rem;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-            overflow: hidden;
-          }
-          .inline-form-header {
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            padding: 24px 32px;
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            position: relative;
-          }
-          .inline-form-icon {
-            width: 56px;
-            height: 56px;
-            background: #eab308;
-            border-radius: 28px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #1a1a2e;
-          }
-          .inline-form-title h2 {
-            color: #eab308;
-            font-size: 1.75rem;
-            font-weight: 700;
-            margin: 0;
-          }
-          .inline-form-title p {
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 0.875rem;
-            margin: 4px 0 0 0;
-          }
-          .inline-form-close {
-            position: absolute;
-            top: 24px;
-            right: 28px;
-            background: rgba(255, 255, 255, 0.1);
-            border: none;
-            border-radius: 40px;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            color: white;
-            transition: all 0.2s;
-          }
-          .inline-form-close:hover {
-            background: rgba(255, 255, 255, 0.2);
-            transform: scale(1.05);
-          }
-          .inline-form {
-            padding: 28px 32px;
-          }
-          .inline-form-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 32px;
-          }
-          .inline-form-col {
-            display: flex;
-            flex-direction: column;
-            gap: 24px;
-          }
-          .inline-section {
-            background: #f8fafc;
-            border-radius: 24px;
-            padding: 20px;
-            border: 1px solid #e2e8f0;
-          }
-          .inline-section-header {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 20px;
-            padding-bottom: 12px;
-            border-bottom: 2px solid #eab308;
-          }
-          .inline-section-header h3 {
-            font-size: 1rem;
-            font-weight: 600;
-            color: #1e293b;
-            margin: 0;
-          }
-          .inline-grid-2 {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-          }
-          .inline-field {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-          }
-          .inline-field label {
-            font-size: 0.7rem;
-            font-weight: 600;
-            color: #475569;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-          }
-          .inline-input, .inline-select {
-            padding: 10px 14px;
-            border: 1.5px solid #e2e8f0;
-            border-radius: 12px;
-            font-size: 0.875rem;
-            transition: all 0.2s;
-            background: white;
-            font-family: inherit;
-          }
-          .inline-input:focus, .inline-select:focus {
-            outline: none;
-            border-color: #eab308;
-            box-shadow: 0 0 0 3px rgba(234, 179, 8, 0.1);
-          }
-          .inline-info-message {
-            background: #fefce8;
-            border: 1px solid #fde047;
-            border-radius: 12px;
-            padding: 12px 16px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 0.75rem;
-            color: #854d0e;
-            margin-top: 16px;
-          }
-          .inline-error-message {
-            background: #fef2f2;
-            border: 1px solid #fecaca;
-            border-radius: 12px;
-            padding: 12px 16px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 0.75rem;
-            color: #dc2626;
-            margin-top: 16px;
-          }
-          .inline-info-grid {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-          }
-          .inline-info-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #e2e8f0;
-          }
-          .inline-info-item .info-label {
-            font-size: 0.75rem;
-            color: #64748b;
-          }
-          .inline-info-item .info-value {
-            font-size: 0.875rem;
-            font-weight: 500;
-            color: #1e293b;
-          }
-          .inline-secondary-btn {
-            background: white;
-            border: 1.5px solid #e2e8f0;
-            padding: 10px 24px;
-            border-radius: 40px;
-            font-size: 0.875rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-          }
-          .inline-secondary-btn:hover {
-            border-color: #eab308;
-            color: #eab308;
-          }
-          .inline-primary-btn {
-            background: linear-gradient(135deg, #1a1a2e, #16213e);
-            border: none;
-            padding: 12px 28px;
-            border-radius: 40px;
-            font-size: 0.875rem;
-            font-weight: 600;
-            color: #eab308;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-          }
-          .inline-primary-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(26, 26, 46, 0.4);
-            color: #fbbf24;
-          }
-          .inline-primary-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-          }
-          .inline-form-footer {
-            display: flex;
-            justify-content: flex-end;
-            gap: 16px;
-            padding-top: 24px;
-            border-top: 1px solid #e2e8f0;
-            margin-top: 24px;
-          }
-          .checkbox-label {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.875rem;
-            cursor: pointer;
-          }
-          .display-options-panel {
-            background: #f8fafc;
-            border-radius: 24px;
-            padding: 20px;
-            margin-bottom: 24px;
-            border: 1px solid #e2e8f0;
-          }
-          .display-options-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 1rem;
-            margin-bottom: 1rem;
-          }
-          .reset-all-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem 1rem;
-            background: #ef4444;
-            color: white;
-            border: none;
-            border-radius: 2rem;
-            cursor: pointer;
-            font-size: 0.75rem;
-          }
-          .display-options-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 0.75rem;
-          }
-          .display-option-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.5rem;
-            background: white;
-            border-radius: 12px;
-            border: 1px solid #e2e8f0;
-          }
-          .display-option-label {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.75rem;
-          }
-          .display-option-buttons {
-            display: flex;
-            gap: 0.25rem;
-          }
-          .mode-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0.25rem 0.5rem;
-            background: #f1f5f9;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            cursor: pointer;
-          }
-          .mode-btn.active {
-            background: #0f172a;
-            border-color: #0f172a;
-            color: white;
-          }
-          @media (max-width: 1024px) {
-            .inline-form-grid {
-              grid-template-columns: 1fr;
-            }
-          }
-          @media (max-width: 768px) {
-            .inline-form-container { margin: 1rem; }
-            .inline-form-header { padding: 16px 20px; }
-            .inline-form-header h2 { font-size: 1.25rem; }
-            .inline-form { padding: 20px; }
-            .inline-grid-2 { grid-template-columns: 1fr; }
-          }
-          @media (prefers-color-scheme: dark) {
-            .inline-form-container { background: #1e293b; border-color: #334155; }
-            .inline-section { background: #0f172a; border-color: #334155; }
-            .inline-section-header h3 { color: #f1f5f9; }
-            .inline-field label { color: #94a3b8; }
-            .inline-input, .inline-select { background: #0f172a; border-color: #334155; color: #f1f5f9; }
-            .display-options-panel { background: #0f172a; border-color: #334155; }
-            .display-option-item { background: #1e293b; border-color: #475569; }
-            .mode-btn { background: #334155; border-color: #475569; color: #cbd5e1; }
-            .mode-btn.active { background: #eab308; color: #0f172a; }
-            .inline-secondary-btn { background: #1e293b; border-color: #475569; color: #cbd5e1; }
-            .inline-secondary-btn:hover { border-color: #eab308; color: #eab308; }
-          }
+@import url("https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,800;1,900&display=swap");
+
+/* Jina Road design – same as AdminReservations form. Scoped under .rv */
+
+.rv {
+  --acc: #eab308;
+  --acc-d: #ca9a04;
+  --acc-tx: #a16207;
+  --danger: #dc2626;
+  --blue: #1da1e8;
+  --blue-d: #0f84c4;
+  --ink: #0a0a0a;
+
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-2: #f4f5f8;
+  --tx: #111216;
+  --tx-2: #5b6070;
+  --tx-3: #8a90a0;
+  --line: #e1e4ea;
+  --line-strong: #0a0a0a;
+  --hard: 0 3px 0 #0a0a0a;
+  --soft: 0 10px 30px rgba(10, 10, 10, 0.08);
+
+  font-family: Archivo, "Segoe UI", system-ui, -apple-system, sans-serif;
+  color: var(--tx);
+  min-height: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (prefers-color-scheme: dark) {
+  .rv {
+    --bg: #0f172a;
+    --surface: #15171c;
+    --surface-2: #1b1e25;
+    --tx: #f2f3f5;
+    --tx-2: #a4aab8;
+    --tx-3: #747b8c;
+    --line: #2a2e37;
+    --line-strong: #3b404c;
+    --acc-tx: #facc15;
+    --hard: 0 3px 0 rgba(234, 179, 8, 0.7);
+    --soft: 0 10px 30px rgba(0, 0, 0, 0.45);
+  }
+}
+
+.rv *,
+.rv *::before,
+.rv *::after {
+  box-sizing: border-box;
+}
+
+.rv button {
+  font-family: inherit;
+}
+
+.rv input[type="checkbox"],
+.rv input[type="radio"] {
+  accent-color: var(--acc);
+}
+
+/* =====================================================================
+   PAGE HEADER
+   ===================================================================== */
+.rv .inline-form-container {
+  position: relative;
+  max-width: 1280px;
+  margin: 1.5rem auto;
+  background: var(--surface);
+  border: 1.5px solid var(--line-strong);
+  border-radius: 28px;
+  overflow: hidden;
+  overflow: clip;
+}
+.rv .inline-form-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 24px 80px 24px 28px;
+  background: var(--ink);
+  border-bottom: 6px solid transparent;
+}
+.rv .inline-form-icon {
+  width: 58px;
+  height: 58px;
+  border-radius: 16px;
+  background: var(--acc);
+  color: #0a0a0a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transform: rotate(-5deg);
+}
+.rv .inline-form-title h2 {
+  margin: 0;
+  color: #fff;
+  font-size: 1.6rem;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+.rv .inline-form-title p {
+  margin: 4px 0 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.85rem;
+}
+.rv .inline-form-close {
+  position: absolute;
+  top: 50%;
+  right: 22px;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  background: transparent;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.rv .inline-form-close:hover { background: var(--acc); border-color: var(--acc); color: #0a0a0a; transform: translateY(-50%) rotate(90deg); }
+
+.rv .inline-form { padding: 28px; }
+.rv .inline-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.rv .inline-form-col { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+
+.rv .inline-section {
+  background: var(--surface-2);
+  border: 1.5px solid var(--line);
+  border-radius: 20px;
+  padding: 20px;
+  min-width: 0;
+}
+.rv .inline-section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.rv .inline-section-header svg {
+  width: 30px;
+  height: 30px;
+  padding: 6px;
+  border-radius: 50%;
+  background: var(--acc);
+  color: #0a0a0a;
+  flex-shrink: 0;
+}
+.rv .inline-section-header h3 {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tx);
+  white-space: nowrap;
+}
+.rv .inline-section-header::after {
+  content: "";
+  flex: 1;
+  border-bottom: 2px dotted var(--tx-3);
+  transform: translateY(4px);
+  min-width: 12px;
+}
+
+.rv .inline-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.rv .inline-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.rv .inline-field label,
+.rv .signature-input-section label,
+.rv .inline-payment-form label {
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tx-2);
+}
+.rv .inline-input,
+.rv .inline-select,
+.rv .inline-textarea {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--tx);
+  font-size: 0.9rem;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+.rv .inline-textarea { resize: vertical; min-height: 84px; }
+.rv .inline-input:focus,
+.rv .inline-select:focus,
+.rv .inline-textarea:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+.rv .inline-input:disabled,
+.rv .inline-select:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.rv .inline-search-section {
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: 16px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+.rv .inline-search-input-wrapper { position: relative; margin-bottom: 12px; }
+.rv .inline-search-input-wrapper svg {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--acc-tx);
+  pointer-events: none;
+}
+.rv .inline-search-input-wrapper .inline-input { padding-left: 42px; }
+.rv .inline-results {
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  margin-bottom: 12px;
+  background: var(--surface);
+}
+.rv .inline-result-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  cursor: pointer;
+  border-bottom: 1.5px dotted var(--line);
+  transition: background 0.15s;
+}
+.rv .inline-result-item:last-child { border-bottom: 0; }
+.rv .inline-result-item:hover { background: rgba(29, 161, 232, 0.1); }
+.rv .inline-result-item.active { background: rgba(29, 161, 232, 0.14); border-left: 4px solid var(--blue); }
+.rv .inline-result-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--acc-tx);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.rv .inline-result-info { flex: 1; min-width: 0; }
+.rv .inline-result-info strong { display: block; font-size: 0.9rem; font-weight: 800; margin-bottom: 3px; }
+.rv .inline-result-details { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 0.72rem; color: var(--tx-2); font-weight: 600; }
+.rv .inline-matricule-code {
+  font-family: Archivo, monospace;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: var(--tx);
+  background: #fff;
+  border: 1.5px solid #0a0a0a;
+  border-radius: 6px;
+  padding: 1px 8px;
+  color: #0a0a0a;
+}
+.rv .inline-selected {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 11px 14px;
+  background: rgba(29, 161, 232, 0.12);
+  border: 1.5px solid var(--blue);
+  border-radius: 12px;
+}
+.rv .inline-selected svg { color: var(--blue-d); flex-shrink: 0; }
+.rv .inline-selected strong { display: block; font-size: 0.66rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; color: var(--blue-d); }
+.rv .inline-selected p { margin: 0; font-size: 0.85rem; font-weight: 700; }
+.rv .inline-checkbox { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; font-size: 0.88rem; font-weight: 700; cursor: pointer; }
+.rv .inline-checkbox input { width: 18px; height: 18px; }
+
+.rv .inline-outline-btn,
+.rv .inline-secondary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--tx);
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.1s, background 0.15s;
+}
+.rv .inline-outline-btn:hover,
+.rv .inline-secondary-btn:hover { background: var(--surface-2); transform: translateY(-1px); }
+.rv .inline-outline-btn:active,
+.rv .inline-secondary-btn:active { transform: translateY(2px); }
+
+.rv .inline-primary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 0 26px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line-strong);
+  background: var(--acc);
+  color: #0a0a0a;
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.1s, background 0.15s;
+}
+.rv .inline-primary-btn:hover:not(:disabled) { background: var(--acc-d); transform: translateY(-1px); }
+.rv .inline-primary-btn:active:not(:disabled) { transform: translateY(3px); }
+.rv .inline-primary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.rv .inline-add-payment {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 18px;
+  margin-bottom: 16px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line-strong);
+  background: var(--blue);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.rv .inline-add-payment:hover { background: var(--blue-d); }
+.rv .inline-payment-section { margin-top: 18px; }
+.rv .inline-payment-form {
+  background: var(--surface);
+  border: 1.5px dashed var(--line-strong);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 18px;
+}
+.rv .inline-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 16px; flex-wrap: wrap; }
+.rv .inline-history { background: var(--surface); border: 1.5px solid var(--line); border-radius: 16px; overflow: hidden; }
+.rv .inline-history h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 12px 16px;
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: var(--surface-2);
+  border-bottom: 1.5px solid var(--line);
+}
+.rv .inline-history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1.5px dotted var(--line);
+}
+.rv .inline-history-item:last-child { border-bottom: 0; }
+.rv .inline-history-info { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; font-size: 0.78rem; }
+.rv .inline-history-date { color: var(--tx-3); font-weight: 600; }
+.rv .inline-history-method { background: var(--surface-2); border: 1.5px solid var(--line); padding: 1px 10px; border-radius: 999px; font-weight: 700; font-size: 0.7rem; }
+.rv .inline-history-amount { font-weight: 900; color: #0f8a43; }
+.rv .inline-history-notes { color: var(--tx-2); font-style: italic; }
+.rv .inline-history-delete { background: none; border: 0; color: var(--danger); cursor: pointer; padding: 8px; border-radius: 50%; }
+.rv .inline-history-delete:hover { background: rgba(220, 38, 38, 0.12); }
+.rv .inline-new-client { padding: 6px 0; }
+.rv .inline-empty-state { padding: 1rem; text-align: center; background: var(--surface); border: 1.5px dashed var(--line-strong); border-radius: 14px; margin-top: 0.5rem; }
+.rv .inline-empty-state p { color: var(--tx-2); margin-bottom: 0.75rem; font-weight: 600; }
+.rv .inline-form-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 14px;
+  margin-top: 24px;
+  padding-top: 22px;
+  border-top: 2px dotted var(--line);
+}
+
+.rv .signature-input-section,
+.rv .paperwork-checkboxes {
+  background: var(--surface-2);
+  border: 1.5px solid var(--line);
+  border-radius: 20px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.rv .signature-input-section h3,
+.rv .paperwork-checkboxes h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 14px;
+  font-size: 0.82rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.rv .signature-input-section h3::before,
+.rv .paperwork-checkboxes h3::before {
+  content: "";
+  width: 6px;
+  height: 18px;
+  background: var(--acc);
+  border-radius: 2px;
+  transform: skewX(-14deg);
+}
+.rv .signature-inputs { display: flex; flex-wrap: wrap; gap: 14px; }
+.rv .signature-inputs > div { flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.rv .checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.rv .checkbox-label input { width: 18px; height: 18px; }
+
+.rv .display-options-panel {
+  background: var(--surface-2);
+  border: 1.5px solid var(--line);
+  border-radius: 20px;
+  padding: 18px;
+  margin-bottom: 20px;
+}
+.rv .display-options-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+.rv .display-options-header h3 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 0.82rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
+.rv .reset-all-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--tx);
+  font-size: 0.72rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.rv .reset-all-btn:hover { background: var(--surface-2); }
+.rv .display-options-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.rv .display-option-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+}
+.rv .display-option-label { display: flex; align-items: center; gap: 7px; font-size: 0.78rem; font-weight: 700; min-width: 0; }
+.rv .display-option-label svg { color: var(--acc-tx); flex-shrink: 0; }
+.rv .display-option-buttons { display: flex; gap: 4px; flex-shrink: 0; }
+.rv .mode-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  color: var(--tx-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.rv .mode-btn:hover { background: var(--surface-2); }
+.rv .mode-btn.active { background: var(--acc); border-color: var(--line-strong); color: #0a0a0a; }
+
+.rv .checkbox-group { display:flex; align-items:center; gap:10px; }
+
+@media (max-width: 1024px) {
+  .rv .inline-form-grid { grid-template-columns: 1fr; gap: 22px; }
+}
+
+@media (max-width: 640px) {
+  .rv .inline-form-container { margin: 0.6rem; border-radius: 22px; }
+  .rv .inline-form-header { padding: 18px 64px 18px 18px; gap: 14px; }
+  .rv .inline-form-icon { width: 48px; height: 48px; border-radius: 14px; }
+  .rv .inline-form-title h2 { font-size: 1.2rem; }
+  .rv .inline-form-close { right: 14px; width: 40px; height: 40px; }
+  .rv .inline-form { padding: 16px; }
+  .rv .inline-section { padding: 16px; border-radius: 18px; }
+  .rv .inline-grid-2 { grid-template-columns: 1fr; }
+  .rv .inline-form-footer { flex-direction: column-reverse; }
+  .rv .inline-form-footer > *,
+  .rv .inline-actions > * { width: 100%; }
+  .rv .inline-form-footer .inline-primary-btn,
+  .rv .inline-form-footer .inline-secondary-btn,
+  .rv .inline-form-footer .inline-outline-btn { width: 100%; }
+  .rv .inline-history-item { flex-direction: column; align-items: flex-start; }
+  .rv .inline-result-details { flex-direction: column; gap: 2px; }
+  .rv .signature-input-section,
+  .rv .paperwork-checkboxes,
+  .rv .display-options-panel { padding: 14px; border-radius: 18px; }
+  .rv .display-options-grid { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rv *, .rv *::before, .rv *::after { animation: none !important; transition: none !important; }
+}
         `}</style>
+      </div>
       </div>
     );
   }
@@ -7195,7 +7196,7 @@ const handleToggleExtend = (reservation) => {
         .report-modal { background: white; border-radius: 1.5rem; width: 95%; max-width: 1200px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); animation: slideInUp 0.3s ease-out; }
         .report-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem; border-bottom: 1px solid #e2e8f0; background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%); }
         .report-modal-title { font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; color: #1e293b; }
-        .report-modal-body { flex: 1; overflow-y: auto; padding: 1.5rem; }
+        .report-modal-body { flex: 1; padding: 1.5rem; }
         .report-modal-footer { display: flex; justify-content: flex-end; gap: 0.75rem; padding: 1rem 1.5rem; border-top: 1px solid #e2e8f0; background: #f8fafc; }
         .report-table-container { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 0.75rem; margin-top: 1rem; }
         .report-table { width: 100%; border-collapse: collapse; font-size: 0.813rem; }
