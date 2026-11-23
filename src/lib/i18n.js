@@ -12,26 +12,32 @@ const translations = {
     'nav.book': 'Réserver',
 
     // Hero
-    'hero.tagline': 'Location Premium',
-    'hero.title1': 'Conduisez le',
-    'hero.title2': 'luxe',
-    'hero.subtitle': 'Découvrez notre collection de véhicules haut de gamme. Réservation simple, service exceptionnel.',
+    'hero.tagline': 'Location de voiture · 7j/7',
+    'hero.title1': 'Conduisez en',
+    'hero.title2': 'toute liberté',
+    'hero.subtitle': 'JINA BUSINESS vous propose la location, la vente et l\'achat de voitures, ainsi que des services automobiles. Réservation simple, service 24/7.',
     'hero.cta.book': 'Réserver maintenant',
     'hero.cta.fleet': 'Voir la collection',
 
     // Features
     'features.title': 'Une expérience unique',
     'features.subtitle': 'Nous repensons la location de voiture pour la rendre simple, rapide et agréable.',
-    'f1.title': 'Véhicules premium',
-    'f1.desc': 'Une collection exclusive entretenue avec soin.',
+    'f1.title': 'Véhicules variés',
+    'f1.desc': 'Berlines, SUV et citadines entretenus avec soin.',
     'f2.title': 'Réservation rapide',
     'f2.desc': 'Formulaire simple en moins de 60 secondes.',
-    'f3.title': 'Support 24/7',
-    'f3.desc': 'Une équipe dédiée à votre service.',
+    'f3.title': 'Service 24/7',
+    'f3.desc': 'Ouvert 7j/7, une équipe dédiée à votre service.',
+
+    // Services
+    'services.title': 'Nos services',
+    'services.rental': 'Location de voiture',
+    'services.sale': 'Vente et achat des voitures',
+    'services.auto': 'Service automobiles',
 
     // Cars
     'cars.title': 'Notre collection',
-    'cars.subtitle': 'Choisissez parmi nos véhicules premium',
+    'cars.subtitle': 'Choisissez parmi nos véhicules',
     'cars.year': 'Année',
     'cars.color': 'Couleur',
     'cars.type': 'Transmission',
@@ -55,18 +61,21 @@ const translations = {
 
     // About
     'about.title': 'Notre histoire',
-    'about.lead': 'Depuis 2008, nous révolutionnons la location de voiture au Maroc et en France.',
+    'about.lead': 'JINA BUSINESS, agence de location de voiture à Médiouna, Casablanca : location, vente et achat de voitures, et service automobiles, 7j/7.',
 
     // Contact
     'contact.title': 'Contactez-nous',
     'contact.subtitle': 'Une question ? Notre équipe est là pour vous répondre.',
-    'contact.address': 'BASSATINE AL OULFA GH 3 IMMEUBLE 14 N°56 AL OULFA - CASABLANCA',
-    'contact.phone': '+212 665 921 921',
-    'contact.email': 'smaiticar@gmail.com',
-    'contact.hours': 'Lun-Ven: 9h-19h, Sam: 10h-17h',
+    'contact.address': 'LOT ERRACHAD N° 706 TR 02 MAG 01 MEDIOUNA, CASABLANCA',
+    'contact.phone': '05 26 03 00 67',
+    'contact.mobile': 'Najib : 06 67 47 47 45',
+    'contact.gsm': '06 63 04 95 75 - 06 67 47 47 45',
+    'contact.email': 'jinabusiness0@gmail.com',
+    'contact.hours': 'Ouvert 7j/7 · Service 24/7',
+    'contact.legal': 'TP : 37701443 - RC : 624023 - IF : 65912528 - CNSS : 5317601 - ICE : 003478448000020',
 
     // Footer
-    'footer.tagline': 'La location premium, accessible à tous.',
+    'footer.tagline': 'JINA BUSINESS · Location de voiture, 7j/7.',
     'footer.rights': 'Tous droits réservés.',
 
     // Auth
@@ -88,26 +97,32 @@ const translations = {
     'nav.book': 'احجز',
 
     // Hero
-    'hero.tagline': 'تأجير فاخر',
-    'hero.title1': 'قد',
-    'hero.title2': 'الفخامة',
-    'hero.subtitle': 'اكتشف مجموعتنا من السيارات الراقية. حجز بسيط، خدمة استثنائية.',
+    'hero.tagline': 'تأجير السيارات · 7/7',
+    'hero.title1': 'سق',
+    'hero.title2': 'بكل حرية',
+    'hero.subtitle': 'جينا بيزنس تقدم لك كراء وبيع وشراء السيارات وخدمات السيارات. حجز بسيط وخدمة على مدار الساعة.',
     'hero.cta.book': 'احجز الآن',
     'hero.cta.fleet': 'شاهد المجموعة',
 
     // Features
     'features.title': 'تجربة فريدة',
     'features.subtitle': 'نعيد تعريف تأجير السيارات لنجعله بسيطاً وسريعاً وممتعاً.',
-    'f1.title': 'سيارات فاخرة',
-    'f1.desc': 'مجموعة حصرية يتم صيانته بعناية.',
+    'f1.title': 'سيارات متنوعة',
+    'f1.desc': 'سيارات عائلية ورباعية الدفع وصغيرة تتم صيانتها بعناية.',
     'f2.title': 'حجز سريع',
     'f2.desc': 'نموذج بسيط في أقل من 60 ثانية.',
-    'f3.title': 'دعم 24/7',
-    'f3.desc': 'فريق مخصص لخدمتك.',
+    'f3.title': 'خدمة 24/7',
+    'f3.desc': 'مفتوح 7 أيام في الأسبوع، وفريق مخصص لخدمتك.',
+
+    // Services
+    'services.title': 'خدماتنا',
+    'services.rental': 'تأجير السيارات',
+    'services.sale': 'بيع وشراء السيارات',
+    'services.auto': 'خدمات السيارات',
 
     // Cars
     'cars.title': 'مجموعتنا',
-    'cars.subtitle': 'اختر من بين سياراتنا الفاخرة',
+    'cars.subtitle': 'اختر من بين سياراتنا',
     'cars.year': 'السنة',
     'cars.color': 'اللون',
     'cars.type': 'ناقل الحركة',
@@ -131,18 +146,21 @@ const translations = {
 
     // About
     'about.title': 'قصتنا',
-    'about.lead': 'منذ عام 2012 نغير عالم تأجير السيارات في المغرب.',
+    'about.lead': 'جينا بيزنس، وكالة تأجير السيارات في مديونة، الدار البيضاء: كراء وبيع وشراء السيارات وخدمات السيارات، 7 أيام في الأسبوع.',
 
     // Contact
     'contact.title': 'اتصل بنا',
     'contact.subtitle': 'لديك سؤال؟ فريقنا في انتظارك.',
-    'contact.address': 'بساتين الألفة GH 3 مبنى 14 رقم 56 الألفة - الدار البيضاء',
-    'contact.phone': '921 921 665 212+',
-    'contact.email': 'smaiticar@gmail.com',
-    'contact.hours': 'الإثنين-الجمعة: 9-19، السبت: 10-17',
+    'contact.address': 'تجزئة الرشاد رقم 706 TR 02 MAG 01 مديونة - الدار البيضاء',
+    'contact.phone': '\u200E05 26 03 00 67\u200E',
+    'contact.mobile': 'نجيب : \u200E06 67 47 47 45\u200E',
+    'contact.gsm': '\u200E06 63 04 95 75 - 06 67 47 47 45\u200E',
+    'contact.email': 'jinabusiness0@gmail.com',
+    'contact.hours': 'مفتوح 7/7 · خدمة 24/7',
+    'contact.legal': '\u200ETP : 37701443 - RC : 624023 - IF : 65912528 - CNSS : 5317601 - ICE : 003478448000020\u200E',
 
     // Footer
-    'footer.tagline': 'التأجير الفاخر في متناول الجميع.',
+    'footer.tagline': 'جينا بيزنس · تأجير السيارات، 7/7.',
     'footer.rights': 'جميع الحقوق محفوظة.',
 
     // Auth
