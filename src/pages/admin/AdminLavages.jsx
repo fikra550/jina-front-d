@@ -718,9 +718,12 @@ export default function AdminLavages() {
       productCost += (l.lavage_products || []).reduce(
         (sum, p) => sum + (Number(p.quantity) || 0) * (Number(p.unit_cost) || 0), 0);
     });
-    const revenue = Number(stats.total_revenue) || 0;
+    // Revenu = argent réellement encaissé (paiements) sur les lavages non annulés
+    const revenue = (lavages || [])
+      .filter(l => l.status !== 'cancelled')
+      .reduce((sum, l) => sum + (Number(l.amount_paid) || 0), 0);
     return { revenue, laveurPay, productCost, net: revenue - laveurPay - productCost };
-  }, [lavages, laveurs, stats.total_revenue]);
+  }, [lavages, laveurs]);
 
   const statCards = [
     { label: "Total",        value: stats.total       || 0, icon: <Droplet size={20} />,      color: "blue"   },
