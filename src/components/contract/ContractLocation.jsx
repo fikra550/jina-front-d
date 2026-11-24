@@ -3,7 +3,7 @@
 // Used by AdminReservations.jsx and AdminReservationsStatus.jsx
 import { useState, useEffect } from "react";
 import html2canvas from "html2canvas";
-import checklistImage from "../../assets/checklist.png";
+import checklistImage from "../../assets/Checklist.png";
 
 const LOGO = "/JinaLogo.png";
 
