@@ -4,17 +4,18 @@ import { useSelector } from 'react-redux';
 import { Navigate } from 'react-router-dom';
 import { selectUser, selectIsAuthenticated } from '../Redux/store';
 
-// Default pages per role (keep in sync with AdminLayout)
+// Default pages per role. Single source of truth: AdminLayout imports this too.
+// 'lavage', 'laveurs', 'products', 'payments': superadmin only, others need an explicit permission.
 export const DEFAULT_PAGES = {
-  admin: ['cars', 'matricules', 'clients', 'reservations', 'accidents', 'contacts', 'users', 'garages', 'sous-locations', 'lavage', 'products'],
-  employee: ['cars', 'matricules', 'reservations', 'contacts', 'lavage', 'products'],
+  admin: ['cars', 'matricules', 'clients', 'reservations', 'accidents', 'contacts', 'users', 'garages', 'sous-locations'],
+  employee: ['cars', 'matricules', 'reservations', 'contacts'],
 };
 
 export default function ProtectedRoute({ children, pageSlug }) {
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const user = useSelector(selectUser);
   const myPermissions = useSelector((state) => state.permissions?.myPermissions || []);
-  const permissionsLoading = useSelector((state) => state.permissions?.loading);
+  const loadedFor = useSelector((state) => state.permissions?.loadedFor);
 
   // Not logged in -> login page
   if (!isAuthenticated) return <Navigate to="/admin" replace />;
@@ -30,8 +31,11 @@ export default function ProtectedRoute({ children, pageSlug }) {
   // No pageSlug (Dashboard, Profile, layout wrapper): any staff member can enter
   if (!pageSlug) return children;
 
-  // Wait for permissions before deciding
-  if (permissionsLoading) {
+  // Wait until THIS user's permissions have been fetched at least once.
+  // (Without this, a refresh / direct link to a page granted by permission
+  // is redirected to /dashboard before the permissions arrive.)
+  const permissionsReady = loadedFor != null && String(loadedFor) === String(user.id);
+  if (!permissionsReady && !(DEFAULT_PAGES[user.role] || []).includes(pageSlug)) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <div className="spinner"></div>

@@ -29,6 +29,7 @@ import AdminProfile from './pages/admin/AdminProfile';
 import AdminSousLocations from './pages/admin/AdminSousLocations';
 import AdminLavages from './pages/admin/AdminLavages';
 import AdminProducts from './pages/admin/AdminProducts';
+import AdminLaveurs from './pages/admin/AdminLaveurs';
 import SignContract from './pages/SignContract';
 
 const BRAND = 'Jina Business';
@@ -78,6 +79,7 @@ const TitleUpdater = () => {
       '/sous-locations': 'Sous‑locations',
       '/lavage': 'Lavages',
       '/products': 'Produits',
+      '/laveurs': 'Laveurs',
       '/merci': 'Merci',
     };
 
@@ -182,6 +184,7 @@ function App() {
           <Route path="sous-locations" element={<ProtectedRoute pageSlug="sous-locations"><AdminSousLocations /></ProtectedRoute>} />
           <Route path="lavage" element={<ProtectedRoute pageSlug="lavage"><AdminLavages /></ProtectedRoute>} />
           <Route path="products" element={<ProtectedRoute pageSlug="products"><AdminProducts /></ProtectedRoute>} />
+          <Route path="laveurs" element={<ProtectedRoute pageSlug="laveurs"><AdminLaveurs /></ProtectedRoute>} />
         </Route>
 
         {/* Signature routes */}

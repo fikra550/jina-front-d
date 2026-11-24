@@ -3,7 +3,7 @@
 // Used by AdminReservations.jsx and AdminReservationsStatus.jsx
 import { useState, useEffect } from "react";
 import html2canvas from "html2canvas";
-import checklistImage from "../../assets/Checklist.png";
+import checklistImage from "../../assets/checklist.png";
 
 const LOGO = "/JinaLogo.png";
 
@@ -504,7 +504,8 @@ export async function contractToPdf(doc, contractElement, { includeSignatures = 
     for (let i = 0; i < pages.length; i++) {
       const canvas = await html2canvas(pages[i], { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
       if (i > 0) doc.addPage();
-      doc.addImage(canvas.toDataURL("image/png", 1.0), "PNG", 0, 0, pageW, pageH);
+      // JPEG (q=0.88) au lieu de PNG sans perte : PDF ~20x plus léger, texte toujours net
+      doc.addImage(canvas.toDataURL("image/jpeg", 0.88), "JPEG", 0, 0, pageW, pageH, undefined, "FAST");
     }
   } finally {
     document.body.removeChild(clone);

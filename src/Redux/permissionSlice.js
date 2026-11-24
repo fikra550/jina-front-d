@@ -37,6 +37,15 @@ export const revokePermission = createAsyncThunk('permissions/revoke', async ({ 
     return { userId, pageSlug };
 });
 
+// id of the logged-in user (same source the rest of this file already uses)
+const getCurrentUserId = () => {
+    try {
+        return JSON.parse(localStorage.getItem('user'))?.id ?? null;
+    } catch {
+        return null;
+    }
+};
+
 export const fetchMyPermissions = createAsyncThunk('permissions/fetchMyPermissions', async () => {
     const res = await api.get('/admin/permissions/me');
     return res.data.permissions;
@@ -49,6 +58,9 @@ const permissionSlice = createSlice({
         userPermissions: {},
         myPermissions: [],
         loading: false,
+        // id of the user whose permissions have been fetched at least once
+        // (ProtectedRoute waits for this before deciding to redirect)
+        loadedFor: null,
     },
     reducers: {
         updateMyPermissions: (state, action) => {
@@ -66,6 +78,12 @@ const permissionSlice = createSlice({
         removeMyPermission: (state, action) => {
             const pageSlug = action.payload;
             state.myPermissions = state.myPermissions.filter(p => p.page_slug !== pageSlug);
+        },
+        // call on logout so the next user starts clean
+        resetMyPermissions: (state) => {
+            state.myPermissions = [];
+            state.loadedFor = null;
+            state.loading = false;
         }
     },
     extraReducers: (builder) => {
@@ -106,11 +124,22 @@ const permissionSlice = createSlice({
                     state.myPermissions = state.myPermissions.filter(p => p.page_slug !== pageSlug);
                 }
             })
+            .addCase(fetchMyPermissions.pending, (state) => {
+                // only show the "loading" state for the first fetch (not the 30s refresh)
+                if (state.loadedFor !== getCurrentUserId()) state.loading = true;
+            })
             .addCase(fetchMyPermissions.fulfilled, (state, action) => {
                 state.myPermissions = action.payload;
+                state.loading = false;
+                state.loadedFor = getCurrentUserId();
+            })
+            .addCase(fetchMyPermissions.rejected, (state) => {
+                // never leave the app stuck on the spinner if the request fails
+                state.loading = false;
+                state.loadedFor = getCurrentUserId();
             });
     },
 });
 
-export const { updateMyPermissions, addMyPermission, removeMyPermission } = permissionSlice.actions;
+export const { updateMyPermissions, addMyPermission, removeMyPermission, resetMyPermissions } = permissionSlice.actions;
 export default permissionSlice.reducer;

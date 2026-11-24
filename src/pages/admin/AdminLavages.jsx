@@ -9,18 +9,17 @@ import {
   addLavageProducts, removeLavageProduct,
   selectLavages, selectLavagesStats,
   fetchCars, fetchProducts, fetchUtilisateurs,
-  selectProducts,
+  selectProducts, api,
 } from '../../Redux/store';
 import PaginationControls from '../../components/PaginationControls';
 import { useResetScrollOnOpen } from "../../hooks/useResetScrollOnOpen";
-import InvoiceViewPage, { downloadInvoice } from '../../components/invoice/InvoiceDocument';
-import cachetImage from '../../assets/cache2.png';
+import InvoiceViewPage, { downloadInvoice, InvoiceOptionsModal } from '../../components/invoice/InvoiceDocument';
 import {
   Droplet, Plus, Pencil, Trash2, X, Play, CheckCircle2, Ban,
   CreditCard, Package, RefreshCw, Clock, Calendar, Car, User,
   Save, Sparkles, Tag, Image as ImageIcon, FileText, ChevronDown,
   Check, List, LayoutGrid, ArrowUpDown, ArrowUp, ArrowDown, Search, Camera, ImagePlus, Eye,
-  AlertCircle, Wallet, TrendingUp, Timer, Settings, Receipt,
+  AlertCircle, Wallet, TrendingUp, Timer, Settings, Receipt, Users,
 } from 'lucide-react';
 
 /* ============================================================
@@ -87,36 +86,6 @@ const AcSelect = ({ value, onChange, options, id, ariaLabel }) => {
 
 /* Facture : voir src/components/invoice/InvoiceDocument.jsx */
 
-/* ============================================================
-   Choix : facture avec ou sans cachet (cachet = assets/cache2.png)
-   ============================================================ */
-const InvoiceCachetModal = ({ subtitle, onClose, onChoose }) => (
-  <div className="modal-overlay" onClick={onClose}>
-    <div className="modal delete-modal invoice-modal" onClick={(e) => e.stopPropagation()}>
-      <div className="invoice-icon"><Receipt size={32} /></div>
-      <h3 className="delete-title">Télécharger la facture</h3>
-      <p className="delete-message">
-        {subtitle && <><span className="reservation-id">{subtitle}</span><br /></>}
-        Voulez-vous la facture avec ou sans cachet ?
-      </p>
-      <div className="invoice-choices">
-        <button type="button" className="invoice-choice" onClick={() => onChoose(false)}>
-          <FileText size={26} />
-          <strong>Sans cachet</strong>
-          <small>Facture simple</small>
-        </button>
-        <button type="button" className="invoice-choice invoice-choice-primary" onClick={() => onChoose(true)}>
-          <img src={cachetImage} alt="" className="invoice-cachet-preview" />
-          <strong>Avec cachet</strong>
-          <small>Cachet de l'agence</small>
-        </button>
-      </div>
-      <button type="button" className="modal-btn modal-btn-cancel" onClick={onClose} style={{ width: '100%' }}>
-        Annuler
-      </button>
-    </div>
-  </div>
-);
 
 /* ============================================================
    Bouton d'ajout de photos (avant / après)
@@ -174,6 +143,28 @@ const lavageClient = (l) => {
   return '';
 };
 
+// Matricule saisi sur le lavage (sinon ancien format : état du véhicule / matricule lié)
+const lavageVehicle = (l, max = 40) => {
+  const plate = (l.vehicle_plate || '').trim();
+  if (plate) return plate;
+  if (l.vehicle_condition_before) return l.vehicle_condition_before.split('\n')[0].slice(0, max);
+  return l.matricule?.matricule_code || '—';
+};
+
+const dh = (n) => `${Number(n || 0).toFixed(2)} DH`;
+
+const payRuleLabel = (l) =>
+  l.pay_type === 'fixed'
+    ? `${dh(l.pay_rate)} par lavage`
+    : `${Number(l.pay_rate || 0)} % du prix`;
+
+const EMPTY_LAVEUR = { name: '', phone: '', pay_type: 'percentage', pay_rate: '', is_active: true, notes: '' };
+
+const apiError = (e, fallback = 'Erreur') =>
+  e?.response?.data?.message ||
+  Object.values(e?.response?.data?.errors || {})[0]?.[0] ||
+  fallback;
+
 const buildLavageInvoice = (l) => {
   let services = l.services;
   if (typeof services === 'string') { try { services = JSON.parse(services); } catch { services = []; } }
@@ -217,7 +208,7 @@ const EMPTY = {
   time_lavage: '', type: 'externe',
   services: [], price: 50, discount_amount: 0, tva_amount: 0,
   status: 'pending', payment_status: 'unpaid', amount_paid: 0,
-  washer_name: '', assigned_to: '', bay: '',
+  washer_name: '', laveur_id: '', vehicle_plate: '', assigned_to: '', bay: '',
   vehicle_condition_before: '', notes: '',
   photos_before: [], photos_after: [],
   products: [],
@@ -295,6 +286,16 @@ export default function AdminLavages() {
   const [productModal, setProductModal] = useState(null);
   const [productForm, setProductForm]   = useState({ products: [{ product_id: '', quantity: 1 }] });
 
+  /* ---- laveurs (table + calcul de paie) ---- */
+  const [laveurs, setLaveurs]               = useState([]);
+  const [laveurTotals, setLaveurTotals]     = useState(null);
+  const [laveurPage, setLaveurPage]         = useState(false);
+  const [laveurForm, setLaveurForm]         = useState(EMPTY_LAVEUR);
+  const [editingLaveur, setEditingLaveur]   = useState(null);
+  const [laveurPeriod, setLaveurPeriod]     = useState({ from: '', to: '' });
+  const [payLaveur, setPayLaveur]           = useState(null); // { laveur, summary, lavages, payments }
+  const [laveurPayForm, setLaveurPayForm]   = useState({ amount: '', payment_date: new Date().toISOString().slice(0, 10), method: 'cash', notes: '' });
+
   // Sorting & view state
   const [sortField, setSortField] = useState('date_lavage');
   const [sortDirection, setSortDirection] = useState('desc');
@@ -310,8 +311,46 @@ export default function AdminLavages() {
     dispatch(fetchUtilisateurs());
   }, [dispatch]);
 
+  const periodParams = (p = laveurPeriod) => {
+    const params = {};
+    if (p.from) params.from = p.from;
+    if (p.to)   params.to   = p.to;
+    return params;
+  };
+
+  const loadLaveurs = async (p = laveurPeriod) => {
+    try {
+      const r = await api.get('/laveurs', { params: periodParams(p) });
+      setLaveurs(r.data.laveurs || []);
+      setLaveurTotals(r.data.totals || null);
+    } catch (e) {
+      toast.error(apiError(e, 'Impossible de charger les laveurs'));
+    }
+  };
+
+  const loadLaveurDetail = async (id, p = laveurPeriod, prefillAmount = false) => {
+    try {
+      const r = await api.get(`/laveurs/${id}`, { params: periodParams(p) });
+      setPayLaveur(r.data);
+      if (prefillAmount) {
+        const bal = Number(r.data.summary?.balance) || 0;
+        setLaveurPayForm(f => ({ ...f, amount: bal > 0 ? bal.toFixed(2) : '' }));
+      }
+    } catch (e) {
+      toast.error(apiError(e, 'Impossible de charger le détail'));
+    }
+  };
+
+  // charge la liste au démarrage puis à chaque changement de période
+  useEffect(() => {
+    loadLaveurs();
+    if (payLaveur?.laveur?.id) loadLaveurDetail(payLaveur.laveur.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [laveurPeriod.from, laveurPeriod.to]);
+
   useResetScrollOnOpen([
   showModal,
+  laveurPage,
   paymentModal,
   productModal,
   confirmDlg,
@@ -356,6 +395,110 @@ export default function AdminLavages() {
   });
   const removeProductRow = (idx) => setForm(f => ({ ...f, products: f.products.filter((_, i) => i !== idx) }));
 
+  /* ---- laveurs : handlers ---- */
+  const openLaveurPage = () => {
+    setLaveurPage(true);
+    setPayLaveur(null);
+    setEditingLaveur(null);
+    setLaveurForm(EMPTY_LAVEUR);
+    loadLaveurs();
+  };
+  const closeLaveurPage = () => { setLaveurPage(false); setPayLaveur(null); setEditingLaveur(null); };
+
+  const submitLaveur = async (e) => {
+    e.preventDefault();
+    const name = (laveurForm.name || '').trim();
+    if (!name) return toast.error('Le nom du laveur est obligatoire');
+    const rate = Number(laveurForm.pay_rate);
+    if (!(rate >= 0) || laveurForm.pay_rate === '') return toast.error('Saisissez la rémunération du laveur');
+    if (laveurForm.pay_type === 'percentage' && rate > 100) return toast.error('Le pourcentage ne peut pas dépasser 100');
+    const payload = {
+      name,
+      phone: (laveurForm.phone || '').trim() || null,
+      pay_type: laveurForm.pay_type,
+      pay_rate: rate,
+      is_active: !!laveurForm.is_active,
+      notes: (laveurForm.notes || '').trim() || null,
+    };
+    try {
+      if (editingLaveur) await api.put(`/laveurs/${editingLaveur.id}`, payload);
+      else await api.post('/laveurs', payload);
+      toast.success(editingLaveur ? 'Laveur mis à jour' : 'Laveur ajouté');
+      setEditingLaveur(null);
+      setLaveurForm(EMPTY_LAVEUR);
+      await loadLaveurs();
+      if (payLaveur?.laveur?.id) loadLaveurDetail(payLaveur.laveur.id);
+    } catch (err) {
+      toast.error(apiError(err));
+    }
+  };
+
+  const editLaveur = (l) => {
+    setEditingLaveur(l);
+    setLaveurForm({
+      name: l.name || '', phone: l.phone || '', pay_type: l.pay_type || 'percentage',
+      pay_rate: l.pay_rate ?? '', is_active: !!l.is_active, notes: l.notes || '',
+    });
+  };
+
+  const deleteLaveur = async (l) => {
+    if (!window.confirm(`Supprimer le laveur « ${l.name} » ?`)) return;
+    try {
+      await api.delete(`/laveurs/${l.id}`);
+      toast.success('Laveur supprimé');
+      if (payLaveur?.laveur?.id === l.id) setPayLaveur(null);
+      await loadLaveurs();
+    } catch (err) {
+      toast.error(apiError(err));
+    }
+  };
+
+  const openLaveurPay = (l) => loadLaveurDetail(l.id, laveurPeriod, true);
+
+  const submitLaveurPayment = async (e) => {
+    e.preventDefault();
+    if (!payLaveur) return;
+    if (!(Number(laveurPayForm.amount) > 0)) return toast.error('Saisissez un montant');
+    try {
+      await api.post(`/laveurs/${payLaveur.laveur.id}/payments`, {
+        amount: Number(laveurPayForm.amount),
+        payment_date: laveurPayForm.payment_date,
+        method: laveurPayForm.method,
+        notes: (laveurPayForm.notes || '').trim() || null,
+      });
+      toast.success('Paiement enregistré');
+      setLaveurPayForm(f => ({ ...f, amount: '', notes: '' }));
+      await loadLaveurs();
+      await loadLaveurDetail(payLaveur.laveur.id);
+    } catch (err) {
+      toast.error(apiError(err));
+    }
+  };
+
+  const removeLaveurPayment = async (paymentId) => {
+    if (!payLaveur || !window.confirm('Supprimer ce paiement ?')) return;
+    try {
+      await api.delete(`/laveurs/${payLaveur.laveur.id}/payments/${paymentId}`);
+      toast.success('Paiement supprimé');
+      await loadLaveurs();
+      await loadLaveurDetail(payLaveur.laveur.id);
+    } catch (err) {
+      toast.error(apiError(err));
+    }
+  };
+
+  // choix du laveur dans le formulaire de lavage
+  const pickLaveur = (id) => {
+    const l = laveurs.find(x => String(x.id) === String(id));
+    setForm(f => ({ ...f, laveur_id: id, washer_name: l ? l.name : f.washer_name }));
+  };
+  const selectedLaveur = laveurs.find(x => String(x.id) === String(form.laveur_id));
+  const estimatedPay = selectedLaveur
+    ? (selectedLaveur.pay_type === 'fixed'
+        ? Number(selectedLaveur.pay_rate)
+        : (Number(form.price) || 0) * Number(selectedLaveur.pay_rate) / 100)
+    : null;
+
   /* ---- CRUD ---- */
   const openCreate = () => { setEditing(null); setForm({ ...EMPTY, date_lavage: new Date().toISOString().slice(0, 10) }); setShowModal(true); };
   const openEdit = (l) => {
@@ -368,7 +511,8 @@ export default function AdminLavages() {
       discount_amount: Number(l.discount_amount) || 0, tva_amount: Number(l.tva_amount) || 0,
       status: l.status || 'pending', payment_status: l.payment_status || 'unpaid',
       amount_paid: Number(l.amount_paid) || 0,
-      washer_name: l.washer_name || '', assigned_to: l.assigned_to || '', bay: l.bay || '',
+      washer_name: l.washer_name || '', laveur_id: l.laveur_id || '', vehicle_plate: l.vehicle_plate || '',
+      assigned_to: l.assigned_to || '', bay: l.bay || '',
       vehicle_condition_before: l.vehicle_condition_before || '', notes: l.notes || '',
       photos_before: l.photos_before || [], photos_after: l.photos_after || [],
       products: (l.lavage_products || []).map(p => ({ product_id: p.product_id, quantity: p.quantity, unit_cost: p.unit_cost })),
@@ -379,12 +523,13 @@ export default function AdminLavages() {
   const submit = async (e) => {
     e.preventDefault();
     if (!(form.client_name || '').trim()) return toast.error('Le client est obligatoire');
-    if (!(form.washer_name || '').trim()) return toast.error('Le laveur est obligatoire');
+    if (!form.laveur_id && !(form.washer_name || '').trim()) return toast.error('Le laveur est obligatoire');
     if (!form.time_lavage) return toast.error("L'heure du lavage est obligatoire");
     setSubmitting(true);
     const payload = {
       ...form,
       client_name: (form.client_name || '').trim(),
+      vehicle_plate: (form.vehicle_plate || '').trim(),
       price: Number(form.price),
       discount_amount: Number(form.discount_amount) || 0,
       tva_amount: Number(form.tva_amount) || 0,
@@ -396,6 +541,7 @@ export default function AdminLavages() {
     if (!payload.client_name && !editing) delete payload.client_name;
     if (!payload.reservation_id) delete payload.reservation_id;
     if (!payload.assigned_to)    delete payload.assigned_to;
+    if (!payload.laveur_id)      delete payload.laveur_id;
     if (payload.products.length === 0 && editing) payload.products = [];
 
     const action = editing ? updateLavage({ id: editing.id, data: payload }) : createLavage(payload);
@@ -407,6 +553,7 @@ export default function AdminLavages() {
       toast.success(editing ? 'Lavage mis à jour' : 'Lavage créé');
       setShowModal(false);
       if (payload.products.length > 0) dispatch(fetchProducts(true));
+      loadLaveurs();
     }
   };
 
@@ -516,6 +663,7 @@ export default function AdminLavages() {
     if (search) {
       const term = search.toLowerCase();
       filtered = filtered.filter(l =>
+        (l.vehicle_plate || '').toLowerCase().includes(term) ||
         (l.matricule?.matricule_code || '').toLowerCase().includes(term) ||
         lavageClient(l).toLowerCase().includes(term) ||
         (l.washer_name || '').toLowerCase().includes(term) ||
@@ -552,14 +700,34 @@ export default function AdminLavages() {
   const totalPages = Math.ceil(filteredLavages.length / itemsPerView);
   const paginated = filteredLavages.slice((currentPage - 1) * itemsPerView, currentPage * itemsPerView);
 
-  const anyModalOpen = showModal || paymentModal || productModal || viewInvoice;
+  const anyModalOpen = showModal || paymentModal || productModal || viewInvoice || laveurPage;
+
+  // Revenu net = revenu - paiement des laveurs - coût des produits (lavages terminés)
+  const money = useMemo(() => {
+    const done = (lavages || []).filter(l => l.status === 'completed');
+    let laveurPay = 0, productCost = 0;
+    done.forEach(l => {
+      let pay = Number(l.laveur_amount);
+      if (!Number.isFinite(pay)) {
+        const lv = laveurs.find(x => String(x.id) === String(l.laveur_id));
+        pay = !lv ? 0 : lv.pay_type === 'fixed'
+          ? Number(lv.pay_rate) || 0
+          : (Number(l.price) || 0) * (Number(lv.pay_rate) || 0) / 100;
+      }
+      laveurPay += pay;
+      productCost += (l.lavage_products || []).reduce(
+        (sum, p) => sum + (Number(p.quantity) || 0) * (Number(p.unit_cost) || 0), 0);
+    });
+    const revenue = Number(stats.total_revenue) || 0;
+    return { revenue, laveurPay, productCost, net: revenue - laveurPay - productCost };
+  }, [lavages, laveurs, stats.total_revenue]);
 
   const statCards = [
     { label: "Total",        value: stats.total       || 0, icon: <Droplet size={20} />,      color: "blue"   },
     { label: "En attente",   value: stats.pending     || 0, icon: <Clock size={20} />,         color: "violet" },
     { label: "En cours",     value: stats.in_progress || 0, icon: <Play size={20} />,          color: "cyan"   },
     { label: "Terminés",     value: stats.completed   || 0, icon: <CheckCircle2 size={20} />,  color: "green"  },
-    { label: "Revenu",       value: `${Number(stats.total_revenue || 0).toFixed(0)} DH`, icon: <Wallet size={20} />, color: "blue" },
+    { label: "Revenu", revenue: money, icon: <Wallet size={20} />, color: "blue" },
     { label: "Durée moy.",   value: stats.avg_duration ? `${Math.round(stats.avg_duration)} min` : '—', icon: <Timer size={20} />, color: "violet" },
   ];
 
@@ -655,14 +823,34 @@ export default function AdminLavages() {
                              onChange={e => setForm({ ...form, client_name: e.target.value })} />
                     </div>
                     <div className="inline-field" style={{ gridColumn: '1 / -1' }}>
-                      <label>Laveur (nom) *</label>
-                      <input required className="inline-input" placeholder="Saisir le nom du laveur" value={form.washer_name || ''}
-                             onChange={e => setForm({ ...form, washer_name: e.target.value })} />
+                      <label>Matricule du véhicule</label>
+                      <input className="inline-input" placeholder="Ex: 12345-A-6"
+                             value={form.vehicle_plate || ''}
+                             onChange={e => setForm({ ...form, vehicle_plate: e.target.value })} />
+                    </div>
+                    <div className="inline-field" style={{ gridColumn: '1 / -1' }}>
+                      <label>Laveur *</label>
+                      <select className="inline-select" value={form.laveur_id || ''}
+                              onChange={e => pickLaveur(e.target.value)}>
+                        <option value="">
+                          {form.washer_name && !form.laveur_id ? `${form.washer_name} (non enregistré)` : '— Choisir un laveur —'}
+                        </option>
+                        {laveurs
+                          .filter(l => l.is_active || String(l.id) === String(form.laveur_id))
+                          .map(l => (
+                            <option key={l.id} value={l.id}>{l.name} — {payRuleLabel(l)}</option>
+                          ))}
+                      </select>
+                      {estimatedPay !== null && (
+                        <span style={{ fontSize: '0.78rem', color: 'var(--tx-2)', marginTop: 4, display: 'block' }}>
+                          Rémunération du laveur sur ce lavage : <b>{dh(estimatedPay)}</b>
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="inline-info-msg" style={{ marginTop: 14 }}>
                     <AlertCircle size={16} />
-                    <span>Le véhicule appartient au client — décrivez-le dans « État du véhicule » ci-dessous si besoin.</span>
+                    <span>Le matricule est enregistré uniquement sur ce lavage. Ajoutez les laveurs avec le bouton « Laveurs » de la liste.</span>
                   </div>
                 </div>
 
@@ -759,6 +947,229 @@ export default function AdminLavages() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* ============ LAVEURS : gestion + calcul de paie (inline) ============ */}
+      {laveurPage && (
+        <div className="inline-form-container">
+          <div className="inline-form-header">
+            <div className="inline-form-icon"><Users size={28} /></div>
+            <div className="inline-form-title">
+              <h2>Laveurs</h2>
+              <p>Gestion des laveurs et calcul de leur paiement</p>
+            </div>
+            <button type="button" className="inline-form-close" onClick={closeLaveurPage} aria-label="Fermer">
+              <X size={24} />
+            </button>
+          </div>
+
+          <div className="inline-form">
+            <div className="inline-form-grid">
+              {/* ---------- colonne gauche : période + liste ---------- */}
+              <div className="inline-form-col">
+                <div className="inline-section">
+                  <div className="inline-section-header"><Calendar size={18} /><h3>Période de calcul</h3></div>
+                  <div className="inline-grid-2">
+                    <div className="inline-field">
+                      <label>Du</label>
+                      <input type="date" className="inline-input" value={laveurPeriod.from}
+                             onChange={e => setLaveurPeriod({ ...laveurPeriod, from: e.target.value })} />
+                    </div>
+                    <div className="inline-field">
+                      <label>Au</label>
+                      <input type="date" className="inline-input" value={laveurPeriod.to}
+                             onChange={e => setLaveurPeriod({ ...laveurPeriod, to: e.target.value })} />
+                    </div>
+                  </div>
+                  {(laveurPeriod.from || laveurPeriod.to) && (
+                    <button type="button" className="ac-btn" style={{ marginTop: 10 }}
+                            onClick={() => setLaveurPeriod({ from: '', to: '' })}>
+                      <X size={14} /><span className="ac-btn-text">Toute la période</span>
+                    </button>
+                  )}
+                  {laveurTotals && (
+                    <div className="inline-info-msg" style={{ marginTop: 14 }}>
+                      <Wallet size={16} />
+                      <span>
+                        {laveurTotals.lavages} lavage(s) terminé(s) — Gagné : <b>{dh(laveurTotals.earned)}</b> — Payé : <b>{dh(laveurTotals.paid)}</b> — Reste à payer : <b>{dh(laveurTotals.balance)}</b>
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="inline-section">
+                  <div className="inline-section-header"><Users size={18} /><h3>Liste des laveurs</h3></div>
+                  {laveurs.length === 0 && <div className="inline-empty-hint">Aucun laveur — ajoutez-en un.</div>}
+                  {laveurs.map(l => (
+                    <div key={l.id} style={{
+                      border: '1px solid var(--line)', borderRadius: 14, padding: 12, marginBottom: 10,
+                      background: payLaveur?.laveur?.id === l.id ? 'var(--surface-2)' : 'var(--surface)',
+                      opacity: l.is_active ? 1 : 0.65,
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <div>
+                          <div className="ac-strong">{l.name} {!l.is_active && <span className="badge badge-gray">Inactif</span>}</div>
+                          <div style={{ fontSize: '0.78rem', color: 'var(--tx-2)' }}>
+                            {payRuleLabel(l)}{l.phone ? ` · ${l.phone}` : ''}
+                          </div>
+                        </div>
+                        <span className={`badge ${l.balance > 0 ? 'badge-amber' : 'badge-success'}`}>
+                          Reste : {dh(l.balance)}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--tx-2)', margin: '8px 0' }}>
+                        {l.lavages_count} lavage(s) · Gagné <b>{dh(l.earned)}</b> · Payé <b>{dh(l.paid)}</b>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <button type="button" className="ac-btn ac-btn-primary" onClick={() => openLaveurPay(l)}>
+                          <CreditCard size={14} /><span className="ac-btn-text">Paie</span>
+                        </button>
+                        <button type="button" className="ac-btn" onClick={() => editLaveur(l)}>
+                          <Pencil size={14} /><span className="ac-btn-text">Modifier</span>
+                        </button>
+                        <button type="button" className="ac-btn" onClick={() => deleteLaveur(l)}>
+                          <Trash2 size={14} /><span className="ac-btn-text">Supprimer</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* ---------- colonne droite : formulaire + paie ---------- */}
+              <div className="inline-form-col">
+                <form onSubmit={submitLaveur} className="inline-section">
+                  <div className="inline-section-header">
+                    <User size={18} /><h3>{editingLaveur ? `Modifier — ${editingLaveur.name}` : 'Nouveau laveur'}</h3>
+                  </div>
+                  <div className="inline-grid-2">
+                    <div className="inline-field">
+                      <label>Nom *</label>
+                      <input required className="inline-input" value={laveurForm.name}
+                             onChange={e => setLaveurForm({ ...laveurForm, name: e.target.value })} />
+                    </div>
+                    <div className="inline-field">
+                      <label>Téléphone</label>
+                      <input className="inline-input" value={laveurForm.phone}
+                             onChange={e => setLaveurForm({ ...laveurForm, phone: e.target.value })} />
+                    </div>
+                    <div className="inline-field">
+                      <label>Rémunération *</label>
+                      <select className="inline-select" value={laveurForm.pay_type}
+                              onChange={e => setLaveurForm({ ...laveurForm, pay_type: e.target.value })}>
+                        <option value="percentage">Pourcentage du prix</option>
+                        <option value="fixed">Montant fixe par lavage</option>
+                      </select>
+                    </div>
+                    <div className="inline-field">
+                      <label>{laveurForm.pay_type === 'percentage' ? 'Pourcentage (%) *' : 'Montant par lavage (DH) *'}</label>
+                      <input type="number" min="0" step="0.01" required className="inline-input" value={laveurForm.pay_rate}
+                             max={laveurForm.pay_type === 'percentage' ? 100 : undefined}
+                             onChange={e => setLaveurForm({ ...laveurForm, pay_rate: e.target.value })} />
+                    </div>
+                    <div className="inline-field" style={{ gridColumn: '1 / -1' }}>
+                      <label>Notes</label>
+                      <input className="inline-input" value={laveurForm.notes}
+                             onChange={e => setLaveurForm({ ...laveurForm, notes: e.target.value })} />
+                    </div>
+                    <div className="inline-field" style={{ gridColumn: '1 / -1' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <input type="checkbox" checked={!!laveurForm.is_active}
+                               onChange={e => setLaveurForm({ ...laveurForm, is_active: e.target.checked })} />
+                        Laveur actif (proposé dans le formulaire de lavage)
+                      </label>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
+                    <button type="submit" className="inline-primary-btn"><Save size={16} /> {editingLaveur ? 'Mettre à jour' : 'Ajouter'}</button>
+                    {editingLaveur && (
+                      <button type="button" className="inline-secondary-btn"
+                              onClick={() => { setEditingLaveur(null); setLaveurForm(EMPTY_LAVEUR); }}>
+                        Annuler
+                      </button>
+                    )}
+                  </div>
+                </form>
+
+                {payLaveur && (
+                  <div className="inline-section">
+                    <div className="inline-section-header"><CreditCard size={18} /><h3>Paie — {payLaveur.laveur.name}</h3></div>
+                    <div className="inline-info-msg">
+                      <Wallet size={16} />
+                      <span>
+                        Gagné : <b>{dh(payLaveur.summary.earned)}</b> — Payé : <b>{dh(payLaveur.summary.paid)}</b> — Reste à payer : <b>{dh(payLaveur.summary.balance)}</b>
+                      </span>
+                    </div>
+
+                    <form onSubmit={submitLaveurPayment} style={{ marginTop: 14 }}>
+                      <div className="inline-grid-2">
+                        <div className="inline-field">
+                          <label>Montant *</label>
+                          <input type="number" min="0.01" step="0.01" required className="inline-input"
+                                 value={laveurPayForm.amount}
+                                 onChange={e => setLaveurPayForm({ ...laveurPayForm, amount: e.target.value })} />
+                        </div>
+                        <div className="inline-field">
+                          <label>Date *</label>
+                          <input type="date" required className="inline-input" value={laveurPayForm.payment_date}
+                                 onChange={e => setLaveurPayForm({ ...laveurPayForm, payment_date: e.target.value })} />
+                        </div>
+                        <div className="inline-field">
+                          <label>Méthode</label>
+                          <select className="inline-select" value={laveurPayForm.method}
+                                  onChange={e => setLaveurPayForm({ ...laveurPayForm, method: e.target.value })}>
+                            <option value="cash">Espèces</option>
+                            <option value="check">Chèque</option>
+                            <option value="card">Carte</option>
+                            <option value="transfer">Virement</option>
+                          </select>
+                        </div>
+                        <div className="inline-field">
+                          <label>Notes</label>
+                          <input className="inline-input" value={laveurPayForm.notes}
+                                 onChange={e => setLaveurPayForm({ ...laveurPayForm, notes: e.target.value })} />
+                        </div>
+                      </div>
+                      <button type="submit" className="inline-primary-btn" style={{ marginTop: 12 }}>
+                        <Save size={16} /> Enregistrer le paiement
+                      </button>
+                    </form>
+
+                    <div className="section-header-inline" style={{ marginTop: 18 }}>
+                      <span className="section-label">Paiements versés ({payLaveur.payments.length})</span>
+                    </div>
+                    {payLaveur.payments.length === 0 && <div className="inline-empty-hint">Aucun paiement</div>}
+                    {payLaveur.payments.map(p => (
+                      <div key={p.id} className="history-row">
+                        <span>{new Date(p.payment_date).toLocaleDateString('fr-FR')} — <b>{dh(p.amount)}</b> ({p.method})</span>
+                        <button type="button" className="row-remove-btn" onClick={() => removeLaveurPayment(p.id)}>
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+
+                    <div className="section-header-inline" style={{ marginTop: 18 }}>
+                      <span className="section-label">Détail du calcul — lavages terminés ({payLaveur.lavages.length})</span>
+                    </div>
+                    {payLaveur.lavages.length === 0 && <div className="inline-empty-hint">Aucun lavage terminé sur la période</div>}
+                    {payLaveur.lavages.map(x => (
+                      <div key={x.id} className="history-row">
+                        <span>
+                          {new Date(x.date_lavage).toLocaleDateString('fr-FR')} — {x.client_name || '—'}
+                          {x.vehicle_plate ? ` (${x.vehicle_plate})` : ''} — {dh(x.price)} → <b>{dh(x.laveur_amount)}</b>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="inline-form-footer">
+              <button type="button" className="inline-secondary-btn" onClick={closeLaveurPage}>Fermer</button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -958,6 +1369,9 @@ export default function AdminLavages() {
               <button type="button" className="ac-btn" onClick={() => dispatch(fetchLavages(true))}>
                 <RefreshCw size={15} /><span className="ac-btn-text">Actualiser</span>
               </button>
+              <button type="button" className="ac-btn" onClick={openLaveurPage}>
+                <Users size={15} /><span className="ac-btn-text">Laveurs</span>
+              </button>
               <button type="button" className="ac-btn ac-btn-primary" onClick={openCreate}>
                 <Plus size={15} /><span className="ac-btn-text">Nouveau lavage</span>
               </button>
@@ -969,10 +1383,26 @@ export default function AdminLavages() {
             {statCards.map((st) => (
               <div key={st.label} className="rv-stat-card">
                 <div className={`rv-stat-icon rv-stat-${st.color}`}>{st.icon}</div>
-                <div>
-                  <p className="rv-stat-label">{st.label}</p>
-                  <p className="rv-stat-value">{st.value}</p>
-                </div>
+                {st.revenue ? (
+                  <div className="rv-stat-dual">
+                    <div>
+                      <p className="rv-stat-label">Revenu</p>
+                      <p className="rv-stat-value">{st.revenue.revenue.toFixed(0)} DH</p>
+                    </div>
+                    <div>
+                      <p className="rv-stat-label">Revenu net</p>
+                      <p className={`rv-stat-value ${st.revenue.net >= 0 ? 'rv-pos' : 'rv-neg'}`}>{st.revenue.net.toFixed(0)} DH</p>
+                    </div>
+                    <p className="rv-stat-hint">
+                      − laveurs {st.revenue.laveurPay.toFixed(0)} − produits {st.revenue.productCost.toFixed(0)}
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <p className="rv-stat-label">{st.label}</p>
+                    <p className="rv-stat-value">{st.value}</p>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -1076,9 +1506,7 @@ export default function AdminLavages() {
                           </td>
                           <td>
                             <div className="ac-model" style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {l.vehicle_condition_before
-                                ? l.vehicle_condition_before.split('\n')[0].slice(0, 40)
-                                : (l.matricule?.matricule_code || '—')}
+                              {lavageVehicle(l, 40)}
                             </div>
                           </td>
                           <td style={{ textTransform: 'capitalize' }}>{l.type}</td>
@@ -1198,9 +1626,7 @@ export default function AdminLavages() {
                         </div>
 
                         <div className="ac-mcard-meta">
-                          <span><Car size={13} /> {l.vehicle_condition_before
-                            ? l.vehicle_condition_before.split('\n')[0].slice(0, 30)
-                            : (l.matricule?.matricule_code || '—')}</span>
+                          <span><Car size={13} /> {lavageVehicle(l, 30)}</span>
                           {l.washer_name && <span><User size={13} /> {l.washer_name}</span>}
                           {l.lavage_products?.length > 0 && (
                             <span><Package size={13} /> {l.lavage_products.length} produit(s)</span>
@@ -1302,9 +1728,7 @@ export default function AdminLavages() {
                       <div className="lavage-details">
                         <div className="lavage-info-line">
                           <Car size={13} />
-                          <span>{l.vehicle_condition_before
-                            ? l.vehicle_condition_before.split('\n')[0].slice(0, 40)
-                            : (l.matricule?.matricule_code || '—')}</span>
+                          <span>{lavageVehicle(l, 40)}</span>
                         </div>
                         {l.washer_name && (
                           <div className="lavage-info-line"><User size={13} /> <span>{l.washer_name}</span></div>
@@ -1389,15 +1813,15 @@ export default function AdminLavages() {
         );
       })()}
 
-      {/* ============ MODAL FACTURE : AVEC / SANS CACHET ============ */}
+      {/* ============ MODAL FACTURE : CACHET puis TVA ============ */}
       {invoiceTarget && (
-        <InvoiceCachetModal
+        <InvoiceOptionsModal
           subtitle={`FAC-L-${String(invoiceTarget.id).padStart(5, '0')}`}
           onClose={() => setInvoiceTarget(null)}
-          onChoose={(withCachet) => {
+          onChoose={(withCachet, withTva) => {
             const l = invoiceTarget;
             setInvoiceTarget(null);
-            downloadInvoice(buildLavageInvoice(l), withCachet);
+            downloadInvoice(buildLavageInvoice(l), withCachet, withTva);
           }}
         />
       )}
@@ -1680,6 +2104,10 @@ function Styles() {
 .rv .rv-stat-violet { background: #f3e8ff; color: #8b5cf6; }
 .rv .rv-stat-label { margin: 0; font-size: 0.72rem; font-weight: 600; color: var(--tx-2); text-transform: uppercase; letter-spacing: 0.05em; }
 .rv .rv-stat-value { margin: 2px 0 0; font-size: 1.4rem; font-weight: 800; line-height: 1.1; color: var(--tx); }
+.rv .rv-stat-dual { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; }
+.rv .rv-stat-dual .rv-stat-hint { grid-column: 1 / -1; margin: 2px 0 0; font-size: 0.7rem; color: var(--tx-2); }
+.rv .rv-pos { color: #16a34a; }
+.rv .rv-neg { color: #dc2626; }
 @media (prefers-color-scheme: dark) {
     .rv .rv-stat-blue { background: rgba(37, 99, 235, 0.2); color: #60a5fa; }
     .rv .rv-stat-green { background: rgba(22, 163, 74, 0.2); color: #4ade80; }

@@ -2,10 +2,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { loginUtilisateur, selectIsAuthenticated, selectAuthLoading, selectAuthError, clearAuthError } from "../../Redux/store";
+import { loginUtilisateur, selectIsAuthenticated, selectAuthLoading, selectAuthError, clearAuthError, api } from "../../Redux/store";
 import { Lock, X, Mail, Check, ArrowLeft, User, KeyRound, Phone } from "lucide-react";
 import { toast } from "sonner";
-import axios from "axios";
 import "../../lib/JinaTheme";
 
 const css = `
@@ -143,7 +142,7 @@ export default function AdminLogin() {
     }
     setResetLoading(true);
     try {
-      await axios.post("/api/forgot-password", { Fullname: resetFullname.trim() });
+      await api.post("/forgot-password", { Fullname: resetFullname.trim() });
       toast.success("Demande envoyée. Un administrateur vous contactera.");
       setResetModalOpen(false);
       setResetFullname("");

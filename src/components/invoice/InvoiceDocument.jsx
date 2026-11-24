@@ -9,8 +9,8 @@ import { createRoot } from 'react-dom/client';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { Receipt, X, Download, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
-import logoImage from '../../assets/logo.png';
+import { Receipt, X, Download, ZoomIn, ZoomOut, Maximize2, FileText, Percent, ArrowLeft } from 'lucide-react';
+import logoImage from '../../../public/JinaLogo2.png';
 import cachetImage from '../../assets/cache2.png';
 
 /* ---- Infos de l'agence (reprises de l'ancienne facture) ---- */
@@ -29,6 +29,9 @@ const INK = '#0a0a0a';
 const RED = '#dc2626';
 const GRAY = '#9ca3af';
 const A4_WIDTH_PX = 794;
+
+// Taux de TVA ajouté au prix enregistré (HT) quand la facture est « avec TVA » : 100 -> 120
+export const TVA_RATE = 0.2;
 
 const money = (n) => `${(Number(n) || 0).toFixed(2)} DH`;
 const fmtDate = (d) => {
@@ -81,13 +84,15 @@ const amountInWords = (total) => {
 /* ============================================================
    Feuille A4 (même mise en page que l'ancienne facture PDF)
    ============================================================ */
-export function InvoiceDocument({ invoice, withCachet = false, containerId }) {
+export function InvoiceDocument({ invoice, withCachet = false, withTva = false, containerId }) {
   const inv = invoice || {};
   const lines = inv.lines || [];
   const subtotal = inv.subtotal ?? lines.reduce((s, x) => s + (Number(x.total) || 0), 0);
   const discount = Number(inv.discount) || 0;
-  const tva = Number(inv.tva) || 0;
-  const total = Number(inv.total) || 0;
+  // Le prix enregistré est HT. Avec TVA : TTC = HT + TVA (100 -> 120). Sans TVA : total = prix.
+  const totalHt = Number(inv.total) || 0;
+  const tva = withTva ? totalHt * TVA_RATE : 0;
+  const total = totalHt + tva;
   const paid = Number(inv.paid) || 0;
   const rest = Math.max(0, total - paid);
 
@@ -190,10 +195,11 @@ export function InvoiceDocument({ invoice, withCachet = false, containerId }) {
         {/* Totaux */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 18 }}>
           <div style={{ width: 330 }}>
-            {(discount > 0 || tva > 0) && <div style={totRow}><span>Sous-total</span><span>{money(subtotal)}</span></div>}
+            {(discount > 0 || withTva) && <div style={totRow}><span>Sous-total{withTva ? ' HT' : ''}</span><span>{money(subtotal)}</span></div>}
             {discount > 0 && <div style={totRow}><span>Remise</span><span>- {money(discount)}</span></div>}
-            {tva > 0 && <div style={totRow}><span>TVA</span><span>{money(tva)}</span></div>}
-            <div style={{ ...totRow, fontSize: 17, fontWeight: 800, color: '#a1a6ae' }}><span>TOTAL</span><span>{money(total)}</span></div>
+            {withTva && <div style={totRow}><span>Total HT</span><span>{money(totalHt)}</span></div>}
+            {withTva && <div style={totRow}><span>TVA ({Math.round(TVA_RATE * 100)}%)</span><span>{money(tva)}</span></div>}
+            <div style={{ ...totRow, fontSize: 17, fontWeight: 800, color: '#a1a6ae' }}><span>{withTva ? 'TOTAL TTC' : 'TOTAL'}</span><span>{money(total)}</span></div>
             <div style={totRow}><span>Payé</span><span>{money(paid)}</span></div>
             <div style={{ ...totRow, fontWeight: 900, color: INK, borderTop: `2px solid ${INK}`, marginTop: 2 }}>
               <span>Reste à payer</span><span>{money(rest)}</span>
@@ -256,13 +262,13 @@ const waitImages = (root) =>
     )
   );
 
-export async function generateInvoicePdf(invoice, { withCachet = false } = {}) {
+export async function generateInvoicePdf(invoice, { withCachet = false, withTva = false } = {}) {
   const host = document.createElement('div');
   host.style.cssText = `position:fixed;left:-10000px;top:0;width:${A4_WIDTH_PX}px;background:#fff;z-index:-1;`;
   document.body.appendChild(host);
   const root = createRoot(host);
   try {
-    flushSync(() => root.render(<InvoiceDocument invoice={invoice} withCachet={withCachet} />));
+    flushSync(() => root.render(<InvoiceDocument invoice={invoice} withCachet={withCachet} withTva={withTva} />));
     await waitImages(host);
     if (document.fonts?.ready) { try { await document.fonts.ready; } catch { /* ignore */ } }
     await new Promise((r) => setTimeout(r, 60));
@@ -302,15 +308,74 @@ export async function generateInvoicePdf(invoice, { withCachet = false } = {}) {
   }
 }
 
-export async function downloadInvoice(invoice, withCachet = false) {
+export async function downloadInvoice(invoice, withCachet = false, withTva = false) {
   toast.loading('Génération de la facture en cours...', { id: 'invoice-pdf' });
   try {
-    await generateInvoicePdf(invoice, { withCachet });
+    await generateInvoicePdf(invoice, { withCachet, withTva });
     toast.success('Facture générée avec succès!', { id: 'invoice-pdf' });
   } catch (e) {
     console.error('Invoice PDF error:', e);
     toast.error('Erreur lors de la génération de la facture', { id: 'invoice-pdf' });
   }
+}
+
+/* ============================================================
+   Choix avant téléchargement : 1) cachet  2) TVA
+   (utilise les classes .invoice-* déjà définies dans les pages)
+   ============================================================ */
+export function InvoiceOptionsModal({ subtitle, onClose, onChoose }) {
+  const [step, setStep] = useState('cachet'); // 'cachet' | 'tva'
+  const [withCachet, setWithCachet] = useState(false);
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal delete-modal invoice-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="invoice-icon"><Receipt size={32} /></div>
+        <h3 className="delete-title">Télécharger la facture</h3>
+        <p className="delete-message">
+          {subtitle && <><span className="reservation-id">{subtitle}</span><br /></>}
+          {step === 'cachet' ? 'Voulez-vous la facture avec ou sans cachet ?' : 'Voulez-vous la facture avec ou sans TVA ?'}
+        </p>
+
+        {step === 'cachet' ? (
+          <div className="invoice-choices">
+            <button type="button" className="invoice-choice" onClick={() => { setWithCachet(false); setStep('tva'); }}>
+              <FileText size={26} />
+              <strong>Sans cachet</strong>
+              <small>Facture simple</small>
+            </button>
+            <button type="button" className="invoice-choice invoice-choice-primary" onClick={() => { setWithCachet(true); setStep('tva'); }}>
+              <img src={cachetImage} alt="" className="invoice-cachet-preview" />
+              <strong>Avec cachet</strong>
+              <small>Cachet de l'agence</small>
+            </button>
+          </div>
+        ) : (
+          <div className="invoice-choices">
+            <button type="button" className="invoice-choice" onClick={() => onChoose(withCachet, false)}>
+              <FileText size={26} />
+              <strong>Sans TVA</strong>
+              <small>Total affiché tel quel</small>
+            </button>
+            <button type="button" className="invoice-choice invoice-choice-primary" onClick={() => onChoose(withCachet, true)}>
+              <Percent size={26} />
+              <strong>Avec TVA</strong>
+              <small>HT + TVA {Math.round(TVA_RATE * 100)}% = TTC</small>
+            </button>
+          </div>
+        )}
+
+        {step === 'tva' && (
+          <button type="button" className="modal-btn modal-btn-cancel" onClick={() => setStep('cachet')} style={{ width: '100%', marginBottom: 8 }}>
+            <ArrowLeft size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />Retour
+          </button>
+        )}
+        <button type="button" className="modal-btn modal-btn-cancel" onClick={onClose} style={{ width: '100%' }}>
+          Annuler
+        </button>
+      </div>
+    </div>
+  );
 }
 
 /* ============================================================
@@ -375,6 +440,7 @@ function InvoiceViewport({ children }) {
    ============================================================ */
 export default function InvoiceViewPage({ invoice, onClose, onDownload }) {
   const [withCachet, setWithCachet] = useState(false);
+  const [withTva, setWithTva] = useState(false);
   const seg = (active) => ({
     height: 38, padding: '0 16px', borderRadius: 999, border: '1.5px solid #0a0a0a',
     background: active ? '#eab308' : 'transparent', color: 'inherit',
@@ -393,16 +459,22 @@ export default function InvoiceViewPage({ invoice, onClose, onDownload }) {
       </div>
       <div className="inline-form">
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
-          <div style={{ display: 'inline-flex', gap: 6 }} role="group" aria-label="Aperçu du cachet">
-            <button type="button" style={seg(!withCachet)} onClick={() => setWithCachet(false)}>Sans cachet</button>
-            <button type="button" style={seg(withCachet)} onClick={() => setWithCachet(true)}>Avec cachet</button>
+          <div style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 14 }}>
+            <div style={{ display: 'inline-flex', gap: 6 }} role="group" aria-label="Aperçu du cachet">
+              <button type="button" style={seg(!withCachet)} onClick={() => setWithCachet(false)}>Sans cachet</button>
+              <button type="button" style={seg(withCachet)} onClick={() => setWithCachet(true)}>Avec cachet</button>
+            </div>
+            <div style={{ display: 'inline-flex', gap: 6 }} role="group" aria-label="Aperçu de la TVA">
+              <button type="button" style={seg(!withTva)} onClick={() => setWithTva(false)}>Sans TVA</button>
+              <button type="button" style={seg(withTva)} onClick={() => setWithTva(true)}>Avec TVA</button>
+            </div>
           </div>
           <button type="button" className="inline-primary-btn" onClick={onDownload}>
             <Download size={16} /> Imprimer / PDF
           </button>
         </div>
         <InvoiceViewport>
-          <InvoiceDocument invoice={invoice} withCachet={withCachet} containerId="invoice-print-view" />
+          <InvoiceDocument invoice={invoice} withCachet={withCachet} withTva={withTva} containerId="invoice-print-view" />
         </InvoiceViewport>
       </div>
     </div>

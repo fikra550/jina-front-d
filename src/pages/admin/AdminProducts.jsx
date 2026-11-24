@@ -11,8 +11,7 @@ import {
 } from '../../Redux/store';
 import PaginationControls from '../../components/PaginationControls';
 import { useResetScrollOnOpen } from "../../hooks/useResetScrollOnOpen";
-import InvoiceViewPage, { downloadInvoice } from '../../components/invoice/InvoiceDocument';
-import cachetImage from '../../assets/cache2.png';
+import InvoiceViewPage, { downloadInvoice, InvoiceOptionsModal } from '../../components/invoice/InvoiceDocument';
 import {
   Package, Plus, Pencil, Trash2, X, ShoppingCart, AlertTriangle,
   Droplet, Droplets, Filter, Wrench, Tag, Layers, CheckCircle2, RefreshCw,
@@ -20,7 +19,7 @@ import {
   Search, List, LayoutGrid, ChevronDown, Check, ArrowUp, ArrowDown,
   ArrowUpDown, Info, DollarSign, TrendingUp, AlertCircle, Building2,
   CheckCircle, XCircle, Warehouse, Calendar, CreditCard, Star,
-  History, Receipt, Eye,
+  History, Receipt, Eye, Calculator, Download, Wallet,
 } from 'lucide-react';
 
 /* ============================================================ */
@@ -43,36 +42,6 @@ const EMPTY_CATEGORY = {
 
 /* Facture : voir src/components/invoice/InvoiceDocument.jsx */
 
-/* ============================================================
-   Choix : facture avec ou sans cachet (cachet = assets/cache2.png)
-   ============================================================ */
-const InvoiceCachetModal = ({ subtitle, onClose, onChoose }) => (
-  <div className="modal-overlay" onClick={onClose}>
-    <div className="modal delete-modal invoice-modal" onClick={(e) => e.stopPropagation()}>
-      <div className="invoice-icon"><Receipt size={32} /></div>
-      <h3 className="delete-title">Télécharger la facture</h3>
-      <p className="delete-message">
-        {subtitle && <><span className="reservation-id">{subtitle}</span><br /></>}
-        Voulez-vous la facture avec ou sans cachet ?
-      </p>
-      <div className="invoice-choices">
-        <button type="button" className="invoice-choice" onClick={() => onChoose(false)}>
-          <FileText size={26} />
-          <strong>Sans cachet</strong>
-          <small>Facture simple</small>
-        </button>
-        <button type="button" className="invoice-choice invoice-choice-primary" onClick={() => onChoose(true)}>
-          <img src={cachetImage} alt="" className="invoice-cachet-preview" />
-          <strong>Avec cachet</strong>
-          <small>Cachet de l'agence</small>
-        </button>
-      </div>
-      <button type="button" className="modal-btn modal-btn-cancel" onClick={onClose} style={{ width: '100%' }}>
-        Annuler
-      </button>
-    </div>
-  </div>
-);
 
 const stockText = (p) =>
   `${p.stock_quantity} ${p.unit || ''}`.trim() +
@@ -187,6 +156,388 @@ const AcSelect = ({ value, onChange, options, id, ariaLabel }) => {
     </div>
   );
 };
+
+/* ============================================================
+   ONGLET COMPTABILITÉ
+   Tout est calculé dans le navigateur à partir des ventes, des produits
+   et de la consommation de produits des lavages.
+   - Coût d'un produit vendu = quantité × prix d'achat ACTUEL du produit
+   - Consommation lavage     = coût enregistré au moment du lavage
+   ============================================================ */
+const ymd = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const day10 = (v) => String(v || '').slice(0, 10);
+const money = (n) =>
+  `${Number(n || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} DH`;
+const pct = (n) => `${(Number(n) || 0).toFixed(1)} %`;
+
+const ACC_PERIODS = [
+  { key: 'all',    label: 'Tout' },
+  { key: 'month',  label: 'Ce mois' },
+  { key: '30d',    label: '30 jours' },
+  { key: 'year',   label: 'Cette année' },
+  { key: 'custom', label: 'Personnalisé' },
+];
+
+const rangeFor = (key, custom) => {
+  const now = new Date();
+  if (key === 'month') {
+    return { from: ymd(new Date(now.getFullYear(), now.getMonth(), 1)), to: ymd(new Date(now.getFullYear(), now.getMonth() + 1, 0)) };
+  }
+  if (key === '30d') {
+    const from = new Date(now); from.setDate(from.getDate() - 29);
+    return { from: ymd(from), to: ymd(now) };
+  }
+  if (key === 'year') return { from: `${now.getFullYear()}-01-01`, to: `${now.getFullYear()}-12-31` };
+  if (key === 'custom') return { from: custom.from || '', to: custom.to || '' };
+  return { from: '', to: '' };
+};
+const inRange = (d, r) => !!d && (!r.from || d >= r.from) && (!r.to || d <= r.to);
+
+const monthLabel = (key) => {
+  const [y, m] = key.split('-').map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+};
+
+function AccountingTab({ sales, products: productList, stats }) {
+  const dispatch = useDispatch();
+  const [periodKey, setPeriodKey] = useState('all');
+  const [custom, setCustom] = useState({ from: '', to: '' });
+  const [lavages, setLavages] = useState([]);
+  const [lavErr, setLavErr] = useState(false);
+  const [loadingLav, setLoadingLav] = useState(false);
+
+  const loadLavages = async () => {
+    setLoadingLav(true);
+    try {
+      const r = await api.get('/lavages');
+      setLavages(r.data?.lavages || []);
+      setLavErr(false);
+    } catch {
+      setLavages([]);
+      setLavErr(true); // pas d'accès à la page Lavage -> on ignore cette partie
+    } finally {
+      setLoadingLav(false);
+    }
+  };
+  useEffect(() => { loadLavages(); }, []);
+
+  const refresh = async () => {
+    await Promise.all([
+      dispatch(fetchProducts(true)),
+      dispatch(fetchProductSales()),
+      loadLavages(),
+    ]);
+    toast.success('Comptabilité actualisée');
+  };
+
+  const d = useMemo(() => {
+    const range = rangeFor(periodKey, custom);
+    const pById = new Map((productList || []).map((p) => [p.id, p]));
+    const byProduct = new Map();
+    const byMonth = new Map();
+    const debtors = new Map();
+    const t = { revenue: 0, paid: 0, unpaid: 0, cogs: 0, lavCost: 0, nbSales: 0, nbPaid: 0, nbPartial: 0, nbUnpaid: 0 };
+
+    const prodRow = (id, name, category, color) => {
+      if (!byProduct.has(id)) {
+        byProduct.set(id, { id, name, category, color, qty: 0, revenue: 0, cost: 0, lavQty: 0, lavCost: 0 });
+      }
+      return byProduct.get(id);
+    };
+    const monthRow = (day) => {
+      const k = day.slice(0, 7);
+      if (!byMonth.has(k)) byMonth.set(k, { key: k, revenue: 0, cost: 0, lavCost: 0 });
+      return byMonth.get(k);
+    };
+
+    (sales || []).forEach((sale) => {
+      const day = day10(sale.sale_date);
+      if (!inRange(day, range)) return;
+
+      const qty = Number(sale.quantity) || 0;
+      const total = Number(sale.total_price) || 0;
+      const paid = Math.min(Number(sale.amount_paid) || 0, total);
+      const owed = Math.max(0, total - paid);
+      const cost = qty * (Number(sale.product?.purchase_price) || 0);
+
+      t.nbSales += 1;
+      t.revenue += total; t.paid += paid; t.unpaid += owed; t.cogs += cost;
+      if (owed <= 0.004) t.nbPaid += 1; else if (paid > 0) t.nbPartial += 1; else t.nbUnpaid += 1;
+
+      const row = prodRow(
+        sale.product_id,
+        sale.product?.name || `Produit #${sale.product_id}`,
+        sale.product?.category?.name || 'Sans catégorie',
+        sale.product?.category?.color || '#64748b',
+      );
+      row.qty += qty; row.revenue += total; row.cost += cost;
+
+      const m = monthRow(day);
+      m.revenue += total; m.cost += cost;
+
+      if (owed > 0.004) {
+        const who = saleClientName(sale);
+        debtors.set(who, (debtors.get(who) || 0) + owed);
+      }
+    });
+
+    // consommation de produits par les lavages (hors lavages annulés)
+    (lavages || []).forEach((l) => {
+      if (l.status === 'cancelled') return;
+      const day = day10(l.date_lavage);
+      if (!inRange(day, range)) return;
+      (l.lavage_products || []).forEach((lp) => {
+        const cost = Number(lp.total_cost) || 0;
+        const qty = Number(lp.quantity) || 0;
+        t.lavCost += cost;
+        const prod = pById.get(lp.product_id) || lp.product;
+        const row = prodRow(
+          lp.product_id,
+          prod?.name || `Produit #${lp.product_id}`,
+          prod?.category?.name || 'Sans catégorie',
+          prod?.category?.color || '#64748b',
+        );
+        row.lavQty += qty; row.lavCost += cost;
+        monthRow(day).lavCost += cost;
+      });
+    });
+
+    const products = [...byProduct.values()]
+      .map((r) => ({ ...r, margin: r.revenue - r.cost, marginPct: r.revenue > 0 ? ((r.revenue - r.cost) / r.revenue) * 100 : 0, net: r.revenue - r.cost - r.lavCost }))
+      .sort((a, b) => b.net - a.net);
+
+    const catMap = new Map();
+    products.forEach((p) => {
+      if (!catMap.has(p.category)) catMap.set(p.category, { name: p.category, color: p.color, revenue: 0, margin: 0, lavCost: 0, net: 0 });
+      const c = catMap.get(p.category);
+      c.revenue += p.revenue; c.margin += p.margin; c.lavCost += p.lavCost; c.net += p.net;
+    });
+    const categories = [...catMap.values()].sort((a, b) => b.revenue - a.revenue);
+
+    const months = [...byMonth.values()]
+      .map((m) => ({ ...m, margin: m.revenue - m.cost, net: m.revenue - m.cost - m.lavCost }))
+      .sort((a, b) => (a.key < b.key ? 1 : -1));
+    const maxAbsNet = Math.max(1, ...months.map((m) => Math.abs(m.net)));
+
+    const grossMargin = t.revenue - t.cogs;
+    return {
+      ...t,
+      grossMargin,
+      marginPct: t.revenue > 0 ? (grossMargin / t.revenue) * 100 : 0,
+      net: grossMargin - t.lavCost,
+      products, categories, months, maxAbsNet,
+      debtors: [...debtors.entries()].map(([name, amount]) => ({ name, amount })).sort((a, b) => b.amount - a.amount).slice(0, 8),
+    };
+  }, [sales, productList, lavages, periodKey, custom]);
+
+  const inventoryValue = Number(stats?.inventory_value) || 0;
+  const potentialRevenue = Number(stats?.potential_revenue) || 0;
+
+  const exportCsv = () => {
+    const rows = [
+      ['Produit', 'Catégorie', 'Qté vendue', "Chiffre d'affaires", 'Coût', 'Marge brute', 'Marge %', 'Qté lavages', 'Coût lavages', 'Résultat net'],
+      ...d.products.map((p) => [p.name, p.category, p.qty, p.revenue.toFixed(2), p.cost.toFixed(2), p.margin.toFixed(2), p.marginPct.toFixed(1), p.lavQty, p.lavCost.toFixed(2), p.net.toFixed(2)]),
+      ['TOTAL', '', '', d.revenue.toFixed(2), d.cogs.toFixed(2), d.grossMargin.toFixed(2), d.marginPct.toFixed(1), '', d.lavCost.toFixed(2), d.net.toFixed(2)],
+    ];
+    const csv = '\uFEFF' + rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = `comptabilite-produits-${ymd(new Date())}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const kpis = [
+    { label: "Chiffre d'affaires", value: money(d.revenue), hint: `${d.nbSales} vente(s)`, icon: <TrendingUp size={20} />, color: 'blue' },
+    { label: 'Coût des produits vendus', value: money(d.cogs), hint: "quantité × prix d'achat", icon: <Package size={20} />, color: 'amber' },
+    { label: 'Marge brute', value: money(d.grossMargin), hint: `${pct(d.marginPct)} du CA`, icon: <DollarSign size={20} />, color: 'cyan' },
+    { label: 'Consommation lavages', value: lavErr ? '—' : money(d.lavCost), hint: lavErr ? 'accès Lavage requis' : 'produits utilisés en lavage', icon: <Droplet size={20} />, color: 'violet' },
+    { label: 'Résultat net', value: money(d.net), hint: 'marge − consommation lavages', icon: <Wallet size={20} />, color: d.net >= 0 ? 'green' : 'red' },
+    { label: 'Encaissé', value: money(d.paid), hint: `${d.nbPaid} payée(s) · ${d.nbPartial} partielle(s)`, icon: <CheckCircle size={20} />, color: 'green' },
+    { label: 'Impayés à récupérer', value: money(d.unpaid), hint: `${d.nbUnpaid + d.nbPartial} vente(s) concernée(s)`, icon: <AlertCircle size={20} />, color: 'red' },
+  ];
+
+  const neg = (n) => (n < 0 ? 'acc-neg' : 'acc-pos');
+
+  return (
+    <div className="acc">
+      {/* Période */}
+      <div className="ac-filters">
+        <div className="ac-seg" role="group" aria-label="Période">
+          {ACC_PERIODS.map((p) => (
+            <button key={p.key} type="button"
+              className={`ac-seg-btn ${periodKey === p.key ? 'active' : ''}`}
+              onClick={() => setPeriodKey(p.key)}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+        {periodKey === 'custom' && (
+          <div className="acc-dates">
+            <input type="date" className="acc-date" value={custom.from}
+              onChange={(e) => setCustom({ ...custom, from: e.target.value })} aria-label="Du" />
+            <span>→</span>
+            <input type="date" className="acc-date" value={custom.to}
+              onChange={(e) => setCustom({ ...custom, to: e.target.value })} aria-label="Au" />
+          </div>
+        )}
+        <div className="acc-filter-actions">
+          <button type="button" className="ac-btn" onClick={refresh} disabled={loadingLav}>
+            <RefreshCw size={15} /><span className="ac-btn-text">Actualiser</span>
+          </button>
+          <button type="button" className="ac-btn" onClick={exportCsv} disabled={d.products.length === 0}>
+            <Download size={15} /><span className="ac-btn-text">Exporter CSV</span>
+          </button>
+        </div>
+      </div>
+
+      {/* KPI */}
+      <div className="rv-stats">
+        {kpis.map((k) => (
+          <div key={k.label} className="rv-stat-card">
+            <div className={`rv-stat-icon rv-stat-${k.color}`}>{k.icon}</div>
+            <div>
+              <p className="rv-stat-label">{k.label}</p>
+              <p className="rv-stat-value acc-kpi-value">{k.value}</p>
+              <p className="acc-hint">{k.hint}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Stock actuel */}
+      <div className="acc-card">
+        <div className="acc-title"><Warehouse size={16} /> Stock actuel <span>(ne dépend pas de la période)</span></div>
+        <div className="acc-stock">
+          <div><span>Valeur au prix d'achat</span><b>{money(inventoryValue)}</b></div>
+          <div><span>Valeur au prix de vente</span><b>{money(potentialRevenue)}</b></div>
+          <div><span>Marge potentielle</span><b className={neg(potentialRevenue - inventoryValue)}>{money(potentialRevenue - inventoryValue)}</b></div>
+        </div>
+      </div>
+
+      {/* Par mois */}
+      <div className="acc-card">
+        <div className="acc-title"><Calendar size={16} /> Évolution par mois</div>
+        {d.months.length === 0 ? (
+          <div className="acc-empty">Aucune donnée sur cette période</div>
+        ) : (
+          <div className="ac-scroll">
+            <table className="ac-table" style={{ minWidth: 680 }}>
+              <thead>
+                <tr>
+                  <th>Mois</th><th>CA</th><th>Coût</th><th>Marge</th><th>Lavages</th><th>Net</th><th style={{ width: '22%' }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {d.months.map((m) => (
+                  <tr key={m.key}>
+                    <td className="ac-strong" style={{ textTransform: 'capitalize' }}>{monthLabel(m.key)}</td>
+                    <td>{money(m.revenue)}</td>
+                    <td>{money(m.cost)}</td>
+                    <td>{money(m.margin)}</td>
+                    <td>{lavErr ? '—' : money(m.lavCost)}</td>
+                    <td><b className={neg(m.net)}>{money(m.net)}</b></td>
+                    <td>
+                      <div className="acc-bar">
+                        <div className={`acc-bar-fill ${m.net < 0 ? 'neg' : ''}`}
+                             style={{ width: `${Math.max(2, (Math.abs(m.net) / d.maxAbsNet) * 100)}%` }} />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Par produit */}
+      <div className="acc-card">
+        <div className="acc-title"><Package size={16} /> Par produit</div>
+        {d.products.length === 0 ? (
+          <div className="acc-empty">Aucune vente sur cette période</div>
+        ) : (
+          <div className="ac-scroll">
+            <table className="ac-table" style={{ minWidth: 860 }}>
+              <thead>
+                <tr>
+                  <th>Produit</th><th>Qté vendue</th><th>CA</th><th>Coût</th><th>Marge</th><th>Marge %</th><th>Lavages</th><th>Net</th>
+                </tr>
+              </thead>
+              <tbody>
+                {d.products.map((p) => (
+                  <tr key={p.id}>
+                    <td>
+                      <div className="ac-strong">{p.name}</div>
+                      <div className="acc-cat"><i style={{ background: p.color }} />{p.category}</div>
+                    </td>
+                    <td>{p.qty}</td>
+                    <td>{money(p.revenue)}</td>
+                    <td>{money(p.cost)}</td>
+                    <td>{money(p.margin)}</td>
+                    <td>{p.revenue > 0 ? pct(p.marginPct) : '—'}</td>
+                    <td>{lavErr ? '—' : (p.lavCost > 0 ? `${money(p.lavCost)} (${p.lavQty})` : '—')}</td>
+                    <td><b className={neg(p.net)}>{money(p.net)}</b></td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="acc-total">
+                  <td>Total</td><td></td>
+                  <td>{money(d.revenue)}</td><td>{money(d.cogs)}</td><td>{money(d.grossMargin)}</td>
+                  <td>{pct(d.marginPct)}</td><td>{lavErr ? '—' : money(d.lavCost)}</td>
+                  <td><b className={neg(d.net)}>{money(d.net)}</b></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div className="acc-grid-2">
+        {/* Par catégorie */}
+        <div className="acc-card">
+          <div className="acc-title"><Tag size={16} /> Par catégorie</div>
+          {d.categories.length === 0 ? (
+            <div className="acc-empty">Aucune donnée</div>
+          ) : d.categories.map((c) => (
+            <div key={c.name} className="acc-line">
+              <div className="acc-line-top">
+                <span className="acc-cat"><i style={{ background: c.color }} />{c.name}</span>
+                <b>{money(c.revenue)}</b>
+              </div>
+              <div className="acc-bar">
+                <div className="acc-bar-fill" style={{ width: `${d.revenue > 0 ? Math.max(2, (c.revenue / d.revenue) * 100) : 0}%`, background: c.color }} />
+              </div>
+              <div className="acc-line-sub">
+                {d.revenue > 0 ? pct((c.revenue / d.revenue) * 100) : '0 %'} du CA · marge {money(c.margin)}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Impayés par client */}
+        <div className="acc-card">
+          <div className="acc-title"><User size={16} /> Impayés par client</div>
+          {d.debtors.length === 0 ? (
+            <div className="acc-empty">Aucun impayé 🎉</div>
+          ) : d.debtors.map((x) => (
+            <div key={x.name} className="acc-debt">
+              <span>{x.name}</span>
+              <b className="acc-neg">{money(x.amount)}</b>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <p className="acc-note">
+        Le coût d'un produit vendu utilise son prix d'achat actuel. La consommation des lavages utilise le coût
+        enregistré au moment du lavage. La consommation des matricules (maintenance) n'est pas incluse.
+      </p>
+    </div>
+  );
+}
 
 /* ============================================================ */
 export default function AdminProducts() {
@@ -1049,17 +1400,19 @@ export default function AdminProducts() {
             </div>
           </div>
 
-          <div className="rv-stats">
-            {statCards.map((st) => (
-              <div key={st.label} className="rv-stat-card">
-                <div className={`rv-stat-icon rv-stat-${st.color}`}>{st.icon}</div>
-                <div>
-                  <p className="rv-stat-label">{st.label}</p>
-                  <p className="rv-stat-value">{st.value}</p>
+          {tab !== 'accounting' && (
+            <div className="rv-stats">
+              {statCards.map((st) => (
+                <div key={st.label} className="rv-stat-card">
+                  <div className={`rv-stat-icon rv-stat-${st.color}`}>{st.icon}</div>
+                  <div>
+                    <p className="rv-stat-label">{st.label}</p>
+                    <p className="rv-stat-value">{st.value}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
           <div className="rv-tabs">
             <button type="button" className={`rv-tab-btn ${tab === 'products' ? 'active' : ''}`}
@@ -1073,6 +1426,10 @@ export default function AdminProducts() {
             <button type="button" className={`rv-tab-btn ${tab === 'sales' ? 'active' : ''}`}
               onClick={() => setTab('sales')}>
               <ShoppingCart size={14} /> Ventes
+            </button>
+            <button type="button" className={`rv-tab-btn ${tab === 'accounting' ? 'active' : ''}`}
+              onClick={() => setTab('accounting')}>
+              <Calculator size={14} /> Comptabilité
             </button>
           </div>
 
@@ -1520,6 +1877,8 @@ export default function AdminProducts() {
           {/* ============================================================ */}
           {/* ONGLET VENTES — Desktop table + Mobile cards                 */}
           {/* ============================================================ */}
+          {tab === 'accounting' && <AccountingTab sales={sales} products={products} stats={stats} />}
+
           {tab === 'sales' && (
             <div className="ac-listwrap">
               {/* Desktop table */}
@@ -1716,15 +2075,15 @@ export default function AdminProducts() {
         />
       )}
 
-      {/* ============ MODAL FACTURE : AVEC / SANS CACHET ============ */}
+      {/* ============ MODAL FACTURE : CACHET puis TVA ============ */}
       {invoiceSale && (
-        <InvoiceCachetModal
+        <InvoiceOptionsModal
           subtitle={`FAC-V-${String(invoiceSale.id).padStart(5, '0')}`}
           onClose={() => setInvoiceSale(null)}
-          onChoose={(withCachet) => {
+          onChoose={(withCachet, withTva) => {
             const sale = invoiceSale;
             setInvoiceSale(null);
-            downloadInvoice(buildSaleInvoice(sale), withCachet);
+            downloadInvoice(buildSaleInvoice(sale), withCachet, withTva);
           }}
         />
       )}
@@ -2391,6 +2750,48 @@ function Styles() {
 .rv .ac-action-btn.ac-action-view:hover, .rv .ac-card-btn.ac-action-view:hover, .rv .ac-card-btn.ac-action-view:active { background: #cffafe; }
 @media (prefers-color-scheme: dark) {
     .rv .ac-action-btn.ac-action-view:hover, .rv .ac-card-btn.ac-action-view:hover, .rv .ac-card-btn.ac-action-view:active { background: rgba(8, 145, 178, 0.25); }
+}
+
+/* ===== Comptabilité ===== */
+.rv .acc { display: flex; flex-direction: column; gap: 1rem; }
+.rv .acc .ac-filters { margin-bottom: 0; }
+.rv .acc .rv-stats { margin-bottom: 0; }
+.rv .acc-dates { display: inline-flex; align-items: center; gap: 8px; color: var(--tx-2); }
+.rv .acc-date {
+  height: 38px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--tx); font: inherit; font-size: 0.85rem;
+}
+.rv .acc-filter-actions { margin-left: auto; display: flex; gap: 8px; }
+.rv .acc-kpi-value { font-size: 1.15rem; word-break: break-word; }
+.rv .acc-hint { margin: 3px 0 0; font-size: 0.72rem; color: var(--tx-3); }
+.rv .acc-card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px; overflow: hidden; }
+.rv .acc-title { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 0.95rem; margin-bottom: 12px; }
+.rv .acc-title span { font-weight: 500; font-size: 0.75rem; color: var(--tx-3); }
+.rv .acc-card .ac-scroll { margin: 0 -16px -16px; }
+.rv .acc-empty { padding: 18px 4px; color: var(--tx-3); font-size: 0.85rem; text-align: center; }
+.rv .acc-stock { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.rv .acc-stock div { background: var(--surface-2); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 4px; }
+.rv .acc-stock span { font-size: 0.72rem; color: var(--tx-2); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+.rv .acc-stock b { font-size: 1.05rem; }
+.rv .acc-pos { color: #16a34a; }
+.rv .acc-neg { color: #dc2626; }
+.rv .acc-bar { height: 8px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
+.rv .acc-bar-fill { height: 100%; border-radius: 99px; background: #16a34a; }
+.rv .acc-bar-fill.neg { background: #dc2626; }
+.rv .acc-cat { display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--tx-2); }
+.rv .acc-cat i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.rv .acc-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.rv .acc-line { margin-bottom: 14px; }
+.rv .acc-line-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 0.85rem; }
+.rv .acc-line-sub { margin-top: 5px; font-size: 0.72rem; color: var(--tx-3); }
+.rv .acc-debt { display: flex; justify-content: space-between; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); font-size: 0.85rem; }
+.rv .acc-debt:first-of-type { border-top: 0; }
+.rv .acc-total td { font-weight: 800; background: var(--surface-2); }
+.rv .acc-note { margin: 0; font-size: 0.75rem; color: var(--tx-3); line-height: 1.5; }
+@media (max-width: 760px) {
+  .rv .acc-grid-2 { grid-template-columns: 1fr; }
+  .rv .acc-stock { grid-template-columns: 1fr; }
+  .rv .acc-filter-actions { margin-left: 0; width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {

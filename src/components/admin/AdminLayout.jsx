@@ -21,6 +21,7 @@ import {
   UserCircle,
   Tag,
   Droplet,
+  UserCheck,
   Package,
   ScanLine,
   ExternalLink,
@@ -40,12 +41,8 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import NotificationBell from "../../pages/admin/NotificationBell";
 
-// Default pages per role (no permission check required).
-// 'lavage' and 'products' are NOT listed: superadmin only, others need an explicit permission.
-const DEFAULT_PAGES = {
-  admin:    ['cars', 'matricules', 'clients', 'reservations', 'accidents', 'contacts', 'users', 'garages', 'sous-locations'],
-  employee: ['cars', 'matricules', 'reservations', 'contacts'],
-};
+// Default pages per role come from ProtectedRoute (single source of truth)
+import { DEFAULT_PAGES } from "../ProtectedRoute";
 
 // How the menu is listed: one section per business
 const NAV_GROUPS = [
@@ -55,7 +52,7 @@ const NAV_GROUPS = [
     paths: ["/reservations", "/reservations-status", "/cars", "/matricules", "/sous-locations",
             "/clients", "/matricules-clients", "/contacts", "/garages", "/accidents", "/payments"],
   },
-  { label: "Jina Auto Service", paths: ["/lavage", "/products"] },
+  { label: "Jina Auto Service", paths: ["/lavage", "/laveurs", "/products"] },
   { label: "Compte", paths: ["/profile", "/users"] },
 ];
 
@@ -383,6 +380,7 @@ export default function AdminLayout() {
     { path: "/matricules-clients", icon: ScanLine, label: "Clients par matricule", pageSlug: "matricules" },
     { path: "/contacts", icon: Mail, label: "Contacts", pageSlug: "contacts" },
     { path: "/lavage", icon: Droplet, label: "Lavages", pageSlug: "lavage" },
+    { path: "/laveurs", icon: UserCheck, label: "Laveurs", pageSlug: "laveurs" },
     { path: "/garages", icon: Building2, label: "Garages", pageSlug: "garages" },
     { path: "/products", icon: Package, label: "Produits", pageSlug: "products" },
     { path: "/accidents", icon: AlertTriangle, label: "Accidents", pageSlug: "accidents" },
