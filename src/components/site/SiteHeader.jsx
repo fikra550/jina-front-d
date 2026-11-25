@@ -64,7 +64,7 @@ export default function SiteHeader() {
   /* ---- Hidden shortcut: type "jina" to open /admin ---- */
   useEffect(() => {
     let buffer = "";
-    const SECRET = "jina"; // only "jina" — no "smaiticar"
+    const SECRET = "jina"; // only "jina" 
 
     const onKey = (e) => {
       const tag = (e.target?.tagName || "").toLowerCase();

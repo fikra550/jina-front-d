@@ -30,7 +30,7 @@ export const AccidentInvoicePDF = ({ accident }) => {
           left={
             <>
               <Pill tone="red">CLIENT</Pill>
-              <Line label="Client :" value="SMAITI CAR" />
+              <Line label="Client :" value="JINA BUSINESS" />
               <Line label="Casablanca, le :" value={new Date().toLocaleDateString('fr-FR')} />
               <Line label="Objet :" value={`Réparation voiture ${accident.car?.brand || 'SANDERO STEPWAY'}`} />
             </>

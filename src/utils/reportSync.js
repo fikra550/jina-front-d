@@ -87,7 +87,7 @@ const generateReportPDF = async (rows, fileName) => {
 
   doc.setFontSize(8);
   doc.setTextColor(150, 150, 150);
-  doc.text('SMAITI CAR — Document généré automatiquement.', pageWidth / 2, pageHeight - 10, { align: 'center' });
+  doc.text('JINA BUSINESS — Document généré automatiquement.', pageWidth / 2, pageHeight - 10, { align: 'center' });
 
   const pdfBlob = doc.output('blob');
   return await blobToBase64(pdfBlob);

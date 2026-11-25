@@ -3315,7 +3315,7 @@ const MatriculeCategoryCard = ({
     const pageHeight = doc.internal.pageSize.getHeight();
     doc.setFontSize(16);
     doc.setTextColor(30, 41, 59);
-    doc.text('SMAITI CAR', pageWidth / 2, 20, { align: 'center' });
+    doc.text('JINA BUSINESS', pageWidth / 2, 20, { align: 'center' });
     doc.setFontSize(10);
     doc.setTextColor(184, 134, 11);
     doc.text('LOCATION DE VOITURE', pageWidth / 2, 28, { align: 'center' });
@@ -3368,7 +3368,7 @@ const MatriculeCategoryCard = ({
     });
     doc.setFontSize(8);
     doc.setTextColor(150, 150, 150);
-    doc.text('SMAITI CAR — Document généré automatiquement.', pageWidth / 2, pageHeight - 10, { align: 'center' });
+    doc.text('JINA BUSINESS — Document généré automatiquement.', pageWidth / 2, pageHeight - 10, { align: 'center' });
     doc.save(`matricules_${title.replace(/\s/g, '_')}.pdf`);
     toast.success("PDF téléchargé");
   };

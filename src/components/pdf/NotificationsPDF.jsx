@@ -214,7 +214,7 @@ export const NotificationsPDF = ({ notifications = [], filterDescription = '', c
           {renderTable(todayItems, "Aujourd'hui")}
           {renderTable(tomorrowItems, 'Demain')}
           {renderTable(weekItems, 'Semaine prochaine')}
-          <Text style={styles.footer}>Document généré par SMAITI CAR - {dateStr}</Text>
+          <Text style={styles.footer}>Document généré par JINA BUSINESS - {dateStr}</Text>
         </Page>
       </Document>
     );
@@ -274,7 +274,7 @@ export const NotificationsPDF = ({ notifications = [], filterDescription = '', c
           );
         })}
 
-        <Text style={styles.footer}>Document généré par SMAITI CAR - {dateStr}</Text>
+        <Text style={styles.footer}>Document généré par JINA BUSINESS - {dateStr}</Text>
       </Page>
     </Document>
   );
